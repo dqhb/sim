@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>bowling</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; font-family: 'Segoe UI', Tahoma, sans-serif; user-select: none; }
+        canvas { display: block; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #instructions {
+            position: absolute; bottom: 30px; width: 100%; text-align: center;
+            color: white; font-size: 1.5rem; font-weight: bold; text-shadow: 2px 2px 4px black;
+        }
+        #hud {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(0, 0, 0, 0.8); padding: 15px 25px; border-radius: 8px;
+            color: white; font-size: 1.2rem; border: 2px solid #555;
+        }
+        button {
+            pointer-events: auto; background: #4ade80; border: none; padding: 10px 20px; 
+            font-size: 1.1rem; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 10px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="hud">
+            <div style="font-size: 1.8rem; font-weight: bold; color: #fbbf24;">BOWLING PRO</div>
+            <div id="state-text" style="color: #ccc; margin-top: 5px;">State: Aiming</div>
+            <button onclick="resetLane()">Reset Lane</button>
+        </div>
+        <div id="instructions">Use MOUSE to move left/right.<br>CLICK and PUSH mouse UP to bowl!</div>
+    </div>
+
+    <script>
+        // --- 1. PROCEDURAL TEXTURE GENERATION ---
+        // Generates a wood plank texture for the lane
+        function createWoodTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+            
+            // Base wood color
+            ctx.fillStyle = '#cda971'; ctx.fillRect(0, 0, 512, 1024);
+            
+            // Draw wood grain lines
+            ctx.fillStyle = '#b58e50';
+            for(let i = 0; i < 200; i++) {
+                ctx.fillRect(Math.random() * 512, 0, Math.random() * 3 + 1, 1024);
+            }
+            // Draw plank dividers
+            ctx.fillStyle = '#332211';
+            for(let i = 1; i < 6; i++) {
+                ctx.fillRect(i * (512/6) - 2, 0, 4, 1024);
+            }
+            
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(2, 6);
+            return tex;
+        }
+
+        // Generates the classic red stripes for the pins
+        function createPinTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 256, 256);
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(0, 160, 256, 15); // Bottom stripe
+            ctx.fillRect(0, 190, 256, 15); // Top stripe
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // --- 2. SETUP THREE.JS (Graphics) & CANNON.JS (Physics) ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+        
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.5, 6);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0); // Earth gravity
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 20;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); scene.add(ambientLight);
+        const spotLight = new THREE.SpotLight(0xffffff, 0.8);
+        spotLight.position.set(0, 10, 5);
+        spotLight.castShadow = true;
+        spotLight.shadow.mapSize.width = 2048; spotLight.shadow.mapSize.height = 2048;
+        scene.add(spotLight);
+        
+        // Add a light directly over the pins
+        const pinLight = new THREE.PointLight(0xffffff, 0.6, 20);
+        pinLight.position.set(0, 4, -18);
+        scene.add(pinLight);
+
+        // --- 3. CREATE THE ENVIRONMENT ---
+        // Materials
+        const woodTex = createWoodTexture();
+        const laneMat = new THREE.MeshStandardMaterial({ 
+            map: woodTex, roughness: 0.1, metalness: 0.1 // Glossy finish!
+        });
+        const darkMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+
+        // Lane Graphics
+        const laneWidth = 2; const laneLength = 24;
+        const laneGeo = new THREE.BoxGeometry(laneWidth, 0.2, laneLength);
+        const laneMesh = new THREE.Mesh(laneGeo, laneMat);
+        laneMesh.position.set(0, -0.1, -10);
+        laneMesh.receiveShadow = true;
+        scene.add(laneMesh);
+
+        // Lane Physics
+        const laneBody = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(laneWidth/2, 0.1, laneLength/2)) });
+        laneBody.position.set(0, -0.1, -10);
+        world.addBody(laneBody);
+
+        // Gutters (Visual only for simplicity, if ball falls off lane, it falls)
+        const gutterL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, laneLength), darkMat);
+        gutterL.position.set(-1.25, -0.15, -10); scene.add(gutterL);
+        const gutterR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, laneLength), darkMat);
+        gutterR.position.set(1.25, -0.15, -10); scene.add(gutterR);
+
+        // --- 4. CREATE THE BOWLING BALL ---
+        const ballRadius = 0.25;
+        let ballMesh, ballBody;
+        
+        function initBall() {
+            if(ballMesh) { scene.remove(ballMesh); world.remove(ballBody); }
+            
+            // Graphics
+            const ballMat = new THREE.MeshStandardMaterial({ 
+                color: 0x3b82f6, roughness: 0.2, metalness: 0.4 
+            });
+            ballMesh = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 32, 32), ballMat);
+            ballMesh.castShadow = true;
+            scene.add(ballMesh);
+
+            // Physics (Heavy mass so it plows through pins)
+            ballBody = new CANNON.Body({ 
+                mass: 6, 
+                shape: new CANNON.Sphere(ballRadius),
+                linearDamping: 0.1, angularDamping: 0.1
+            });
+            ballBody.position.set(0, ballRadius + 0.1, 2);
+            world.addBody(ballBody);
+        }
+
+        // --- 5. CREATE THE PINS ---
+        const pins = [];
+        const pinTex = createPinTexture();
+        const pinMat = new THREE.MeshStandardMaterial({ map: pinTex, roughness: 0.4 });
+        
+        // We use a cylinder that is slightly tapered
+        const pinGeo = new THREE.CylinderGeometry(0.08, 0.12, 0.6, 16); 
+        
+        function createPin(x, z) {
+            const mesh = new THREE.Mesh(pinGeo, pinMat);
+            mesh.castShadow = true; scene.add(mesh);
+            
+            const shape = new CANNON.Cylinder(0.08, 0.12, 0.6, 16);
+            // Cannon cylinders are oriented along Z by default, we need them upright (Y)
+            const q = new CANNON.Quaternion(); q.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
+            
+            const body = new CANNON.Body({ mass: 1.5 }); // Lighter than ball
+            body.addShape(shape, new CANNON.Vec3(0,0,0), q);
+            body.position.set(x, 0.3, z);
+            world.addBody(body);
+
+            pins.push({ mesh, body });
+        }
+
+        function setupPins() {
+            // Clear old pins
+            pins.forEach(p => { scene.remove(p.mesh); world.remove(p.body); });
+            pins.length = 0;
+
+            // 10-pin triangle layout
+            const spacing = 0.3;
+            const startZ = -18;
+            
+            createPin(0, startZ); // Row 1 (Head pin)
+            createPin(-spacing/2, startZ - spacing); createPin(spacing/2, startZ - spacing); // Row 2
+            createPin(-spacing, startZ - spacing*2); createPin(0, startZ - spacing*2); createPin(spacing, startZ - spacing*2); // Row 3
+            createPin(-spacing*1.5, startZ - spacing*3); createPin(-spacing*0.5, startZ - spacing*3); createPin(spacing*0.5, startZ - spacing*3); createPin(spacing*1.5, startZ - spacing*3); // Row 4
+        }
+
+        // --- 6. CONTROLS & GAME LOGIC ---
+        let gameState = 'aiming'; // aiming, rolling
+        let startMouseY = 0;
+        let isDragging = false;
+
+        window.addEventListener('mousemove', (e) => {
+            if (gameState === 'aiming') {
+                // Move ball left/right based on mouse position
+                const normalizedX = (e.clientX / window.innerWidth) * 2 - 1;
+                // Keep ball within lane bounds
+                const targetX = Math.max(-0.8, Math.min(0.8, normalizedX * 1.5));
+                ballBody.position.x = targetX;
+                ballBody.velocity.set(0,0,0); // stop rolling
+                ballBody.angularVelocity.set(0,0,0);
+            }
+        });
+
+        window.addEventListener('mousedown', (e) => {
+            if (gameState === 'aiming') {
+                isDragging = true;
+                startMouseY = e.clientY;
+                document.getElementById('state-text').innerText = "State: PUSH UP TO ROLL!";
+            }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (gameState === 'aiming' && isDragging) {
+                isDragging = false;
+                const endMouseY = e.clientY;
+                const distanceY = startMouseY - endMouseY; // How far up did you push?
+
+                if (distanceY > 20) {
+                    gameState = 'rolling';
+                    document.getElementById('state-text').innerText = "State: Rolling!";
+                    document.getElementById('instructions').style.display = 'none';
+
+                    // Calculate throw power
+                    let power = Math.min(distanceY / 10, 40); // Cap max speed
+                    
+                    // Apply physical impulse to ball
+                    ballBody.velocity.set(0, 0, -power);
+                    // Add a tiny bit of forward spin
+                    ballBody.angularVelocity.set(-power/2, 0, 0); 
+                } else {
+                    document.getElementById('state-text').innerText = "State: Aiming";
+                }
+            }
+        });
+
+        window.resetLane = function() {
+            initBall();
+            setupPins();
+            gameState = 'aiming';
+            camera.position.set(0, 1.5, 6); // Reset camera
+            document.getElementById('state-text').innerText = "State: Aiming";
+            document.getElementById('instructions').style.display = 'block';
+        }
+
+        // Initialize game
+        initBall();
+        setupPins();
+
+        // --- 7. MAIN LOOP ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const dt = clock.getDelta();
+            // Step physics engine
+            world.step(1/60, dt, 3);
+
+            // Sync Ball Graphics to Physics Body
+            ballMesh.position.copy(ballBody.position);
+            ballMesh.quaternion.copy(ballBody.quaternion);
+
+            // Sync Pin Graphics to Physics Bodies
+            pins.forEach(p => {
+                p.mesh.position.copy(p.body.position);
+                p.mesh.quaternion.copy(p.body.quaternion);
+            });
+
+            // Camera follow (slightly behind and above ball)
+            if (gameState === 'rolling' && ballBody.position.z > -15) {
+                camera.position.z = ballBody.position.z + 4;
+                camera.position.x = ballBody.position.x * 0.5; // Slight pan
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
