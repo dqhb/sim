@@ -3,485 +3,384 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>evosim</title>
+    <title>sim</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #020617; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; user-select: none; cursor: crosshair; }
-        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; user-select: none; }
+        canvas { display: block; cursor: crosshair; }
         
         #ui-panel {
-            position: absolute; top: 0; left: 0; width: 320px; height: 100%;
-            background: rgba(15, 23, 42, 0.95); border-right: 2px solid #334155;
+            position: absolute; top: 0; right: 0; width: 280px; height: 100%;
+            background: rgba(10, 10, 20, 0.95); border-left: 2px solid #334155;
             display: flex; flex-direction: column; padding: 20px; box-sizing: border-box;
-            box-shadow: 5px 0 20px rgba(0,0,0,0.8); z-index: 10;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.5); z-index: 10;
         }
         
-        h1 { margin: 0 0 5px 0; font-size: 1.5rem; color: #10b981; text-transform: uppercase; letter-spacing: 1px; }
+        h1 { margin: 0 0 5px 0; font-size: 1.5rem; color: #facc15; text-transform: uppercase; }
         p.subtitle { margin: 0 0 20px 0; font-size: 0.85rem; color: #94a3b8; }
         
-        .hud-box { background: #1e293b; border: 1px solid #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
-        .dna-text { font-size: 2.5rem; font-weight: bold; color: #38bdf8; margin: 5px 0; }
+        h2 { margin: 10px 0; font-size: 0.9rem; color: #cbd5e1; border-bottom: 1px solid #475569; padding-bottom: 5px; text-transform: uppercase; }
         
-        .buff-container { height: 30px; margin-bottom: 10px; color: #a855f7; font-weight: bold; text-transform: uppercase; font-size: 0.9rem;}
-
-        h2 { margin: 10px 0; font-size: 1rem; color: #cbd5e1; border-bottom: 1px solid #475569; padding-bottom: 5px; }
-        
-        .upgrade-btn {
-            background: #0f172a; border: 1px solid #38bdf8; color: white;
+        .body-btn {
+            background: #1e293b; border: 2px solid #334155; color: white;
             padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold;
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; transition: 0.2s;
+            display: flex; align-items: center; gap: 10px; margin-bottom: 8px; transition: 0.2s;
+            text-align: left;
         }
-        .upgrade-btn:hover { background: #1e293b; box-shadow: 0 0 10px rgba(56,189,248,0.3); }
-        .upgrade-btn:disabled { border-color: #334155; color: #64748b; cursor: not-allowed; box-shadow: none; background: #0f172a; }
-        .cost-badge { background: #38bdf8; color: #0f172a; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; }
-        .upgrade-btn:disabled .cost-badge { background: #334155; color: #94a3b8; }
-
-        #game-over {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: none; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 50;
-        }
-        #game-over h1 { color: #ef4444; font-size: 5rem; margin-bottom: 10px; text-shadow: 0 0 20px #ef4444; }
-        .restart-btn { background: #10b981; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 20px; text-transform: uppercase; }
-        .restart-btn:hover { background: #059669; }
+        .body-btn:hover { background: #334155; }
+        .body-btn.active { border-color: #facc15; background: rgba(250, 204, 21, 0.1); }
         
-        #instructions { position: absolute; bottom: 20px; left: 340px; color: rgba(255,255,255,0.7); pointer-events: none; z-index: 10; font-size: 1.1rem; text-shadow: 1px 1px 2px black;}
+        .color-circle { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); }
+
+        .slider-container { margin: 15px 0; background: #1e293b; padding: 10px; border-radius: 6px; border: 1px solid #334155; }
+        input[type="range"] { width: 100%; margin-top: 5px; accent-color: #facc15; }
+
+        .control-btn { background: #ef4444; color: white; border: none; padding: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: auto; text-transform: uppercase; }
+        .control-btn:hover { background: #dc2626; }
+        
+        #instructions { 
+            position: absolute; bottom: 20px; left: 20px; color: rgba(255,255,255,0.7); 
+            pointer-events: none; text-shadow: 1px 1px 2px black; z-index: 10;
+        }
     </style>
 </head>
 <body>
 
     <div id="ui-panel">
-        <h1>evosim</h1>
-        <p class="subtitle">WASD to Move. Mouse to Aim. Space to Shoot.</p>
+        <h1>Cosmic Forge</h1>
+        <p class="subtitle">Click & drag to launch. Objects attract each other.</p>
         
-        <div class="hud-box">
-            <div style="color: #94a3b8; font-size: 0.9rem; text-transform: uppercase;">DNA Bank</div>
-            <div class="dna-text" id="dna-display">0</div>
-            <div class="buff-container" id="buff-display"></div>
+        <h2>Spawn Body</h2>
+        <div id="body-palette">
+            </div>
+
+        <div class="slider-container">
+            <label for="initial-vel" style="font-size: 0.9rem; color: #cbd5e1;">Initial Velocity: <span id="vel-val">2</span>x</label>
+            <input type="range" id="initial-vel" min="0.1" max="5" step="0.1" value="2">
         </div>
 
-        <h2>Upgrades</h2>
-        
-        <button class="upgrade-btn" id="upg-speed" onclick="buyUpgrade('speed')">
-            <span>⚡ Agility <br><span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">Lvl <span id="lvl-speed">1</span></span></span>
-            <span class="cost-badge" id="cost-speed">10</span>
-        </button>
-        
-        <button class="upgrade-btn" id="upg-size" onclick="buyUpgrade('size')">
-            <span>🛡️ Bulk <br><span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">Lvl <span id="lvl-size">1</span></span></span>
-            <span class="cost-badge" id="cost-size">15</span>
-        </button>
-
-        <button class="upgrade-btn" id="upg-dash" onclick="buyUpgrade('dash')">
-            <span>🧪 Toxin Damage <br><span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">Lvl <span id="lvl-dash">1</span></span></span>
-            <span class="cost-badge" id="cost-dash">20</span>
-        </button>
-    </div>
-
-    <div id="game-over">
-        <h1>EATEN</h1>
-        <p style="font-size: 1.5rem; color: #cbd5e1;">You became food for the swarm.</p>
-        <button class="restart-btn" onclick="initGame()">Reincarnate</button>
+        <button class="control-btn" onclick="clearWorld()">🗑️ Clear Universe</button>
     </div>
     
     <div id="instructions">
-        <b>[WASD]</b> Move | <b>[Space]</b> or <b>[Left Click]</b> Shoot (Costs 2 DNA) <br>
-        Hunt <span style="color:#34d399">Green</span>. Shrink <span style="color:#ef4444">Red</span> predators. Collect <span style="color:#a855f7">Purple</span> Powerups!
+        <b>Click & Drag</b> to launch planets/moons/asteroids.<br>
+        <b>Click</b> to place static Stars/Black Holes.
     </div>
-    
-    <canvas id="game-canvas"></canvas>
+    <canvas id="nbody-canvas"></canvas>
 
     <script>
-        const canvas = document.getElementById('game-canvas');
-        const ctx = canvas.getContext('2d');
+        const canvas = document.getElementById('nbody-canvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
         
-        let width = window.innerWidth; let height = window.innerHeight;
-        canvas.width = width; canvas.height = height;
+        let width, height;
+        let bodies = [];
+        let G = 0.5; // Gravitational Constant (adjust for faster/slower gravity)
 
-        // --- GAME CONSTANTS & STATE ---
-        const WORLD_SIZE = 4000;
-        let keys = { w: false, a: false, s: false, d: false };
-        let mouse = { x: width/2, y: height/2, worldX: 0, worldY: 0 };
-        let camera = { x: 0, y: 0 };
-        
-        let player, ais, foods, projectiles, particles, boosters, dna;
-        let animationId;
-        
-        const UPGRADE_COSTS = { speed: [10, 25, 50, 100, 999], size: [15, 30, 60, 120, 999], dash: [20, 40, 80, 150, 999] }; // 'dash' is now Damage
+        // UI state
+        let currentBodyType = 'Planet';
+        let initialVelocityMultiplier = 2;
+        let mouseDown = false;
+        let startX, startY;
 
-        // --- CLASSES ---
-        class Player {
-            constructor() {
-                this.x = WORLD_SIZE / 2; this.y = WORLD_SIZE / 2;
+        // --- 1. BODY DEFINITIONS ---
+        const BODY_TYPES = {
+            'Star': {
+                mass: 1000, size: 20, color: '#facc15', static: true, trail: false
+            },
+            'Planet': {
+                mass: 5, size: 8, color: '#38bdf8', static: false, trail: true
+            },
+            'Moon': {
+                mass: 0.5, size: 4, color: '#e2e8f0', static: false, trail: true
+            },
+            'Black Hole': {
+                mass: 5000, size: 15, color: '#1e293b', static: true, trail: false
+            },
+            'Asteroid': {
+                mass: 0.1, size: 2, color: '#888', static: false, trail: true
+            }
+        };
+
+        // UI Setup
+        const bodyPalette = document.getElementById('body-palette');
+        Object.keys(BODY_TYPES).forEach(key => {
+            const body = BODY_TYPES[key];
+            const btn = document.createElement('button');
+            btn.className = `body-btn ${key === currentBodyType ? 'active' : ''}`;
+            btn.innerHTML = `<div class="color-circle" style="background:${body.color}"></div><span>${key}</span>`;
+            if (key === 'Black Hole') btn.innerHTML = `<div class="color-circle" style="background:${body.color}; border-radius:0;"></div><span>${key}</span>`; // Different shape for BH
+            btn.onclick = () => {
+                currentBodyType = key;
+                document.querySelectorAll('.body-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+            bodyPalette.appendChild(btn);
+        });
+
+        document.getElementById('initial-vel').addEventListener('input', (e) => {
+            initialVelocityMultiplier = parseFloat(e.target.value);
+            document.getElementById('vel-val').innerText = initialVelocityMultiplier.toFixed(1);
+        });
+
+        // --- 2. THE BODY CLASS ---
+        class Body {
+            constructor(x, y, type) {
+                const props = BODY_TYPES[type];
+                this.x = x; this.y = y;
                 this.vx = 0; this.vy = 0;
-                
-                this.level = { speed: 0, size: 0, dash: 0 }; // dash = damage
-                this.baseSize = 15;
-                this.baseSpeed = 5;
-                this.color = '#10b981';
-                
-                this.shootCooldown = 0;
-                this.buffTimer = 0; // Supercharge damage booster
+                this.mass = props.mass;
+                this.size = props.size;
+                this.color = props.color;
+                this.static = props.static; // Stars and Black Holes don't move
+                this.trail = props.trail;
+                this.type = type; // Store type for black hole check
+
+                this.history = []; // For drawing trails
+                this.dead = false; // For removal after collision/black hole
             }
 
-            get size() { return this.baseSize + (this.level.size * 5); }
-            get maxSpeed() { return this.baseSpeed + (this.level.speed * 1.5); }
-            get damage() { return (5 + (this.level.dash * 3)) * (this.buffTimer > 0 ? 3 : 1); }
+            // Apply gravitational force from another body
+            applyForce(other) {
+                if (this.static) return; // Static bodies don't get pushed
+
+                const dx = other.x - this.x;
+                const dy = other.y - this.y;
+                const distSq = dx * dx + dy * dy;
+                const dist = Math.sqrt(distSq);
+
+                // Prevent super-strong forces at zero distance
+                if (dist < 1) return;
+
+                const force = (G * this.mass * other.mass) / distSq;
+                const angle = Math.atan2(dy, dx);
+
+                this.vx += (Math.cos(angle) * force) / this.mass;
+                this.vy += (Math.sin(angle) * force) / this.mass;
+            }
 
             update() {
-                // WASD Movement
-                let dx = 0; let dy = 0;
-                if (keys.w) dy -= 1; if (keys.s) dy += 1;
-                if (keys.a) dx -= 1; if (keys.d) dx += 1;
+                if (this.static) return;
 
-                // Normalize diagonal speed
-                if (dx !== 0 && dy !== 0) {
-                    const length = Math.hypot(dx, dy);
-                    dx /= length; dy /= length;
-                }
+                this.x += this.vx;
+                this.y += this.vy;
 
-                // Apply velocity with smooth friction
-                this.vx += (dx * this.maxSpeed - this.vx) * 0.15;
-                this.vy += (dy * this.maxSpeed - this.vy) * 0.15;
-
-                this.x += this.vx; this.y += this.vy;
-
-                // World Bounds
-                if (this.x < this.size) this.x = this.size;
-                if (this.x > WORLD_SIZE - this.size) this.x = WORLD_SIZE - this.size;
-                if (this.y < this.size) this.y = this.size;
-                if (this.y > WORLD_SIZE - this.size) this.y = WORLD_SIZE - this.size;
-
-                if (this.shootCooldown > 0) this.shootCooldown--;
-                if (this.buffTimer > 0) {
-                    this.buffTimer--;
-                    if(this.buffTimer === 0) updateUI(); // Clear text
-                    if(Math.random() < 0.2) createParticles(this.x, this.y, '#a855f7', 1);
-                }
-            }
-
-            shoot() {
-                if (dna >= 2 && this.shootCooldown <= 0) {
-                    dna -= 2;
-                    this.shootCooldown = 15; // Fire rate
-                    
-                    const angle = Math.atan2(mouse.worldY - this.y, mouse.worldX - this.x);
-                    const projSize = this.buffTimer > 0 ? 8 : 5;
-                    projectiles.push(new Projectile(this.x, this.y, angle, this.damage, projSize));
-                    updateUI();
+                // Keep trail history limited
+                if (this.trail) {
+                    this.history.push({ x: this.x, y: this.y });
+                    if (this.history.length > 50) this.history.shift();
                 }
             }
 
             draw() {
-                // Outer ring (glows purple if buffed)
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.buffTimer > 0 ? '#a855f7' : this.color;
-                ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle;
-                ctx.fill(); ctx.shadowBlur = 0;
-                
-                // Inner core
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+                // Draw trail first
+                if (this.trail && this.history.length > 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.history[0].x, this.history[0].y);
+                    for (let i = 1; i < this.history.length; i++) {
+                        ctx.lineTo(this.history[i].x, this.history[i].y);
+                    }
+                    ctx.strokeStyle = this.color + '44'; // Faint trail
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
 
-                // Draw aiming line
+                // Draw body
                 ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                const aimDist = this.size + 15;
-                const angle = Math.atan2(mouse.worldY - this.y, mouse.worldX - this.x);
-                ctx.lineTo(this.x + Math.cos(angle)*aimDist, this.y + Math.sin(angle)*aimDist);
-                ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 3;
+                if (this.type === 'Black Hole') {
+                    // Draw a dark disk with a "swirl" effect
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = this.size * 0.8;
+                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    // Event horizon (subtle inner ring)
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size * 0.6, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(50,50,50,0.8)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                } else {
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = this.color + '88';
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            }
+        }
+
+        // --- 3. GAME LOGIC & CONTROLS ---
+        function initCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        function clearWorld() {
+            bodies = [];
+        }
+
+        // Mouse interaction for spawning bodies
+        canvas.addEventListener('mousedown', (e) => {
+            mouseDown = true;
+            startX = e.clientX;
+            startY = e.clientY;
+
+            // If it's a static body, place it directly on click
+            if (BODY_TYPES[currentBodyType].static) {
+                bodies.push(new Body(startX, startY, currentBodyType));
+                mouseDown = false; // Don't drag static bodies
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (!mouseDown || BODY_TYPES[currentBodyType].static) return; // Already handled static placement
+
+            const endX = e.clientX;
+            const endY = e.clientY;
+
+            const dx = endX - startX;
+            const dy = endY - startY;
+
+            const newBody = new Body(startX, startY, currentBodyType);
+            newBody.vx = dx * 0.05 * initialVelocityMultiplier; // Adjust velocity scale
+            newBody.vy = dy * 0.05 * initialVelocityMultiplier;
+            bodies.push(newBody);
+
+            mouseDown = false;
+        });
+
+        // --- 4. THE SIMULATION LOOP ---
+        function animate() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, width, height);
+
+            // If mouse is down and not a static body, draw a "launch vector"
+            if (mouseDown && !BODY_TYPES[currentBodyType].static) {
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(mouseX, mouseY);
+                ctx.strokeStyle = BODY_TYPES[currentBodyType].color + 'aa';
+                ctx.lineWidth = 2;
                 ctx.stroke();
-            }
-        }
 
-        class Projectile {
-            constructor(x, y, angle, damage, size) {
-                this.x = x + Math.cos(angle) * 20;
-                this.y = y + Math.sin(angle) * 20;
-                const speed = 12;
-                this.vx = Math.cos(angle) * speed;
-                this.vy = Math.sin(angle) * speed;
-                this.damage = damage;
-                this.size = size;
-                this.color = '#38bdf8';
-                this.life = 100;
-            }
-            update() { this.x += this.vx; this.y += this.vy; this.life--; }
-            draw() {
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color; ctx.shadowBlur = 10; ctx.shadowColor = this.color;
-                ctx.fill(); ctx.shadowBlur = 0;
-            }
-        }
-
-        class AI {
-            constructor() {
-                this.x = Math.random() * WORLD_SIZE; this.y = Math.random() * WORLD_SIZE;
-                this.vx = 0; this.vy = 0;
-                
-                const tier = Math.random();
-                if (tier > 0.8) { this.size = 60; this.speed = 2.5; this.color = '#7f1d1d'; } // Boss
-                else if (tier > 0.4) { this.size = 35; this.speed = 3.5; this.color = '#ef4444'; } // Predator
-                else { this.size = 15; this.speed = 4.5; this.color = '#f87171'; } // Scavenger
+                // Draw predicted initial position of the body
+                ctx.beginPath();
+                ctx.arc(startX, startY, BODY_TYPES[currentBodyType].size, 0, Math.PI * 2);
+                ctx.fillStyle = BODY_TYPES[currentBodyType].color + 'aa';
+                ctx.fill();
             }
 
-            update() {
-                let targetX = null; let targetY = null; let state = 'wander';
-
-                // Detect Player
-                const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
-                if (distToPlayer < 400) { // Sight radius
-                    if (player.size > this.size * 1.1) { state = 'flee'; targetX = player.x; targetY = player.y; }
-                    else if (this.size > player.size * 1.1) { state = 'chase'; targetX = player.x; targetY = player.y; }
+            // Calculate forces and update positions
+            for (let i = 0; i < bodies.length; i++) {
+                for (let j = 0; j < bodies.length; j++) {
+                    if (i === j) continue;
+                    bodies[i].applyForce(bodies[j]);
                 }
+            }
 
-                if (state === 'wander') {
-                    this.vx += (Math.random() - 0.5) * 0.5; this.vy += (Math.random() - 0.5) * 0.5;
-                } else if (state === 'chase') {
-                    const angle = Math.atan2(targetY - this.y, targetX - this.x);
-                    this.vx += Math.cos(angle) * 0.4; this.vy += Math.sin(angle) * 0.4;
-                } else if (state === 'flee') {
-                    const angle = Math.atan2(this.y - targetY, this.x - targetX);
-                    this.vx += Math.cos(angle) * 0.6; this.vy += Math.sin(angle) * 0.6;
+            // Update and draw bodies
+            let newBodies = [];
+            for (let i = 0; i < bodies.length; i++) {
+                let body = bodies[i];
+                if (body.dead) continue; // Skip dead bodies
+
+                body.update();
+                body.draw();
+                newBodies.push(body);
+            }
+            bodies = newBodies; // Remove dead bodies
+
+            // Collision detection
+            for (let i = bodies.length - 1; i >= 0; i--) {
+                for (let j = i - 1; j >= 0; j--) { // Check against already processed bodies
+                    const b1 = bodies[i];
+                    const b2 = bodies[j];
+
+                    if (b1.dead || b2.dead) continue; // Skip if already marked for removal
+
+                    const dx = b1.x - b2.x;
+                    const dy = b1.y - b2.y;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist < b1.size + b2.size) { // Collision!
+                        if (b1.type === 'Black Hole' || b2.type === 'Black Hole') {
+                            // Black hole consumes the other body
+                            const bh = b1.type === 'Black Hole' ? b1 : b2;
+                            const victim = bh === b1 ? b2 : b1;
+                            
+                            // Visual effect for consumption
+                            createParticles(victim.x, victim.y, victim.color, 15);
+                            victim.dead = true;
+                            // Black hole grows slightly
+                            bh.mass += victim.mass * 0.5; // Only absorb some mass
+                            bh.size += victim.size * 0.1; // Grow size a bit
+                            
+                        } else {
+                            // Inelastic collision for regular bodies
+                            const larger = b1.mass > b2.mass ? b1 : b2;
+                            const smaller = b1.mass > b2.mass ? b2 : b1;
+
+                            createParticles(smaller.x, smaller.y, smaller.color, 10);
+                            smaller.dead = true; // Mark for removal
+
+                            // Larger body absorbs mass and momentum
+                            larger.mass += smaller.mass * 0.5; // Only absorb some mass
+                            larger.size += smaller.size * 0.2; // Grow size a bit
+                            
+                            // Merge velocities (simple average)
+                            larger.vx = (larger.vx * larger.mass + smaller.vx * smaller.mass) / (larger.mass + smaller.mass);
+                            larger.vy = (larger.vy * larger.mass + smaller.vy * smaller.mass) / (larger.mass + smaller.mass);
+                        }
+                    }
                 }
-
-                const speed = Math.hypot(this.vx, this.vy);
-                if (speed > this.speed) { this.vx = (this.vx / speed) * this.speed; this.vy = (this.vy / speed) * this.speed; }
-
-                this.x += this.vx; this.y += this.vy;
-
-                // Bounce off world walls
-                if (this.x < this.size || this.x > WORLD_SIZE - this.size) this.vx *= -1;
-                if (this.y < this.size || this.y > WORLD_SIZE - this.size) this.vy *= -1;
             }
 
-            draw() {
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color; ctx.fill();
-                ctx.strokeStyle = '#450a0a'; ctx.lineWidth = 3; ctx.stroke();
-            }
+            // Remove dead bodies for next frame
+            bodies = bodies.filter(b => !b.dead);
+
+            // Particle effects
+            particles = particles.filter(p => p.life > 0);
+            particles.forEach(p => { p.update(); p.draw(); });
+
+            requestAnimationFrame(animate);
         }
 
-        class Food {
-            constructor() {
-                this.x = Math.random() * WORLD_SIZE; this.y = Math.random() * WORLD_SIZE;
-                this.size = 4; this.color = '#34d399';
-            }
-            draw() {
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color; ctx.fill();
-            }
-        }
-
-        class Booster {
-            constructor() {
-                this.x = Math.random() * WORLD_SIZE; this.y = Math.random() * WORLD_SIZE;
-                this.size = 10; this.color = '#a855f7';
-                this.pulse = 0;
-            }
-            draw() {
-                this.pulse += 0.1;
-                const glow = Math.abs(Math.sin(this.pulse)) * 10 + 5;
-                
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color; ctx.shadowBlur = glow; ctx.shadowColor = this.color;
-                ctx.fill(); ctx.shadowBlur = 0;
-            }
-        }
-
+        // --- PARTICLE EFFECTS (for collisions/black holes) ---
+        let particles = [];
         class Particle {
-            constructor(x, y, color, speedScale = 1) {
+            constructor(x, y, color) {
                 this.x = x; this.y = y; this.color = color;
-                this.vx = (Math.random() - 0.5) * 8 * speedScale; 
-                this.vy = (Math.random() - 0.5) * 8 * speedScale;
-                this.life = 25; this.maxLife = 25;
+                this.vx = (Math.random() - 0.5) * 6; this.vy = (Math.random() - 0.5) * 6;
+                this.life = 30; this.maxLife = 30;
             }
             update() { this.x += this.vx; this.y += this.vy; this.life--; }
             draw() {
                 ctx.globalAlpha = this.life / this.maxLife;
-                ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 4, 4);
+                ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 3, 3);
                 ctx.globalAlpha = 1.0;
             }
         }
-
-        function createParticles(x, y, color, amount = 10, speedScale = 1) {
-            for(let i=0; i<amount; i++) particles.push(new Particle(x, y, color, speedScale));
+        function createParticles(x, y, color, amount = 8) {
+            for(let i=0; i<amount; i++) particles.push(new Particle(x, y, color));
         }
 
-        // --- CORE LOGIC ---
-        function initGame() {
-            document.getElementById('game-over').style.display = 'none';
-            player = new Player();
-            ais = []; foods = []; projectiles = []; particles = []; boosters = [];
-            dna = 0;
-            
-            for(let i=0; i<400; i++) foods.push(new Food());
-            for(let i=0; i<50; i++) ais.push(new AI());
-            for(let i=0; i<15; i++) boosters.push(new Booster());
-            
-            updateUI();
-            if(animationId) cancelAnimationFrame(animationId);
-            animate();
-        }
+        // --- EVENT LISTENERS ---
+        let mouseX = 0, mouseY = 0;
+        canvas.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+        window.addEventListener('resize', () => { initCanvas(); });
 
-        function checkCollisions() {
-            // Player vs Food
-            for (let i = foods.length - 1; i >= 0; i--) {
-                if (Math.hypot(player.x - foods[i].x, player.y - foods[i].y) < player.size + foods[i].size) {
-                    dna += 1; foods.splice(i, 1); foods.push(new Food()); updateUI();
-                }
-            }
+        // Initial setup and start
+        initCanvas();
+        animate();
 
-            // Player vs Boosters
-            for (let i = boosters.length - 1; i >= 0; i--) {
-                if (Math.hypot(player.x - boosters[i].x, player.y - boosters[i].y) < player.size + boosters[i].size) {
-                    player.buffTimer = 600; // 10 seconds at 60fps
-                    createParticles(boosters[i].x, boosters[i].y, boosters[i].color, 30, 2);
-                    boosters.splice(i, 1); boosters.push(new Booster());
-                    document.getElementById('buff-display').innerText = "🔥 SUPERCHARGE ACTIVE 🔥";
-                }
-            }
-
-            // Projectiles vs AI
-            for (let p = projectiles.length - 1; p >= 0; p--) {
-                let hit = false;
-                for (let a = ais.length - 1; a >= 0; a--) {
-                    if (Math.hypot(projectiles[p].x - ais[a].x, projectiles[p].y - ais[a].y) < projectiles[p].size + ais[a].size) {
-                        // Shrink the AI
-                        ais[a].size -= projectiles[p].damage;
-                        createParticles(ais[a].x, ais[a].y, ais[a].color, 5);
-                        
-                        if (ais[a].size < 10) { // Killed it
-                            createParticles(ais[a].x, ais[a].y, ais[a].color, 20);
-                            ais.splice(a, 1); ais.push(new AI());
-                        }
-                        hit = true; break;
-                    }
-                }
-                if (hit) projectiles.splice(p, 1);
-            }
-
-            // Player vs AI
-            for (let i = ais.length - 1; i >= 0; i--) {
-                const ai = ais[i];
-                if (Math.hypot(player.x - ai.x, player.y - ai.y) < player.size + ai.size * 0.7) { 
-                    if (player.size > ai.size * 1.1) {
-                        // Eat them
-                        dna += Math.floor(ai.size * 2);
-                        createParticles(ai.x, ai.y, ai.color, 20);
-                        ais.splice(i, 1); ais.push(new AI()); updateUI();
-                    } else if (ai.size > player.size * 1.1) {
-                        // Game Over
-                        createParticles(player.x, player.y, player.color, 50, 3);
-                        document.getElementById('game-over').style.display = 'flex';
-                        return true; 
-                    }
-                }
-            }
-            return false;
-        }
-
-        // --- INPUT & UI ---
-        window.addEventListener('keydown', e => { 
-            if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; 
-            if(e.code === 'Space') player.shoot();
-        });
-        window.addEventListener('keyup', e => { 
-            if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; 
-        });
-        
-        canvas.addEventListener('mousemove', e => { 
-            mouse.x = e.clientX; mouse.y = e.clientY; 
-        });
-        canvas.addEventListener('mousedown', () => player.shoot());
-
-        window.buyUpgrade = function(type) {
-            const cost = UPGRADE_COSTS[type][player.level[type]];
-            if (dna >= cost) {
-                dna -= cost; player.level[type]++;
-                createParticles(player.x, player.y, '#38bdf8', 30, 2);
-                updateUI();
-            }
-        }
-
-        function updateUI() {
-            document.getElementById('dna-display').innerText = dna;
-            if(player.buffTimer <= 0) document.getElementById('buff-display').innerText = "";
-            
-            ['speed', 'size', 'dash'].forEach(type => {
-                const lvl = player.level[type];
-                const cost = UPGRADE_COSTS[type][lvl];
-                const btn = document.getElementById(`upg-${type}`);
-                
-                document.getElementById(`lvl-${type}`).innerText = lvl + 1;
-                
-                if (cost === 999) {
-                    document.getElementById(`cost-${type}`).innerText = 'MAX'; btn.disabled = true;
-                } else {
-                    document.getElementById(`cost-${type}`).innerText = cost; btn.disabled = dna < cost;
-                }
-            });
-        }
-
-        function drawGrid() {
-            ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
-            const gridSize = 100;
-            
-            // Draw grid lines relative to camera
-            const startX = Math.floor(camera.x / gridSize) * gridSize;
-            const startY = Math.floor(camera.y / gridSize) * gridSize;
-            
-            ctx.beginPath();
-            for (let x = startX; x < camera.x + width; x += gridSize) { ctx.moveTo(x, camera.y); ctx.lineTo(x, camera.y + height); }
-            for (let y = startY; y < camera.y + height; y += gridSize) { ctx.moveTo(camera.x, y); ctx.lineTo(camera.x + width, y); }
-            ctx.stroke();
-
-            // Draw World Borders
-            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 10;
-            ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-        }
-
-        function animate() {
-            ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, width, height);
-
-            // Update mouse world coordinates based on camera
-            mouse.worldX = mouse.x + camera.x;
-            mouse.worldY = mouse.y + camera.y;
-
-            // Camera follow player (centered in screen, offset by UI panel)
-            const uiOffset = 320 / 2; 
-            camera.x = player.x - width/2 - uiOffset;
-            camera.y = player.y - height/2;
-
-            ctx.save();
-            ctx.translate(-camera.x, -camera.y);
-
-            drawGrid();
-
-            foods.forEach(f => f.draw());
-            boosters.forEach(b => b.draw());
-            
-            projectiles = projectiles.filter(p => p.life > 0);
-            projectiles.forEach(p => { p.update(); p.draw(); });
-
-            ais.forEach(ai => { ai.update(); ai.draw(); });
-            
-            player.update();
-            if (checkCollisions()) { ctx.restore(); return; } 
-            player.draw();
-
-            particles = particles.filter(p => p.life > 0);
-            particles.forEach(p => { p.update(); p.draw(); });
-
-            ctx.restore();
-            animationId = requestAnimationFrame(animate);
-        }
-
-        window.addEventListener('resize', () => {
-            width = window.innerWidth; height = window.innerHeight;
-            canvas.width = width; canvas.height = height;
-        });
-
-        initGame();
+        // Spawn some initial elements for fun
+        bodies.push(new Body(width / 2, height / 2, 'Star')); // Central Star
+        // bodies.push(new Body(width / 4, height / 2, 'Black Hole')); // A black hole for chaos
+        // bodies.push(new Body(width * 0.75, height / 2, 'Star')); // A binary partner
     </script>
 </body>
 </html>
