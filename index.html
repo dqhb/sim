@@ -3,249 +3,231 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Evo-Swarm: Infinite Engine</title>
+    <title>evosim</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #020617; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; user-select: none; cursor: crosshair; }
         canvas { display: block; }
         
         #ui-panel {
-            position: absolute; top: 0; left: 0; width: 340px; height: 100%;
-            background: rgba(30, 41, 59, 0.95); border-right: 2px solid #334155;
+            position: absolute; top: 0; left: 0; width: 300px; height: 100%;
+            background: rgba(15, 23, 42, 0.9); border-right: 2px solid #334155;
             display: flex; flex-direction: column; padding: 20px; box-sizing: border-box;
-            box-shadow: 5px 0 20px rgba(0,0,0,0.5); z-index: 10;
+            box-shadow: 5px 0 20px rgba(0,0,0,0.8); z-index: 10;
         }
         
-        h1 { margin: 0 0 5px 0; font-size: 1.5rem; color: #38bdf8; text-transform: uppercase; }
+        h1 { margin: 0 0 5px 0; font-size: 1.5rem; color: #10b981; text-transform: uppercase; letter-spacing: 1px; }
         p.subtitle { margin: 0 0 20px 0; font-size: 0.85rem; color: #94a3b8; }
+        
+        .hud-box { background: #1e293b; border: 1px solid #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .dna-text { font-size: 2rem; font-weight: bold; color: #38bdf8; margin: 5px 0; }
         
         h2 { margin: 10px 0; font-size: 1rem; color: #cbd5e1; border-bottom: 1px solid #475569; padding-bottom: 5px; }
         
-        .food-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
-        .food-btn {
-            background: #1e293b; border: 2px solid #334155; color: white;
-            padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;
-            display: flex; flex-direction: column; align-items: center; transition: 0.2s;
+        .upgrade-btn {
+            background: #0f172a; border: 1px solid #38bdf8; color: white;
+            padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold;
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; transition: 0.2s;
         }
-        .food-btn:hover { background: #334155; transform: translateY(-2px); }
-        .food-btn.active { border-color: #38bdf8; background: rgba(56, 189, 248, 0.2); }
+        .upgrade-btn:hover { background: #1e293b; box-shadow: 0 0 10px rgba(56,189,248,0.3); }
+        .upgrade-btn:disabled { border-color: #334155; color: #64748b; cursor: not-allowed; box-shadow: none; background: #0f172a; }
+        .cost-badge { background: #38bdf8; color: #0f172a; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; }
+        .upgrade-btn:disabled .cost-badge { background: #334155; color: #94a3b8; }
+
+        #game-over {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 50;
+        }
+        #game-over h1 { color: #ef4444; font-size: 4rem; margin-bottom: 10px; }
+        .restart-btn { background: #10b981; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 20px; text-transform: uppercase; }
+        .restart-btn:hover { background: #059669; }
         
-        #stats-panel { flex-grow: 1; overflow-y: auto; font-size: 0.9rem; color: #cbd5e1; background: #0f172a; padding: 10px; border-radius: 6px; border: 1px solid #334155;}
-        .stat-row { display: flex; justify-content: space-between; margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #334155; }
-        
-        .control-btn { background: #10b981; color: white; border: none; padding: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
-        .control-btn:hover { background: #059669; }
-        .control-btn.danger { background: #ef4444; }
-        .control-btn.danger:hover { background: #dc2626; }
-        
-        #instructions { position: absolute; bottom: 20px; left: 360px; color: rgba(255,255,255,0.6); pointer-events: none; font-size: 1.2rem; }
+        #instructions { position: absolute; bottom: 20px; left: 320px; color: rgba(255,255,255,0.5); pointer-events: none; }
     </style>
 </head>
 <body>
 
     <div id="ui-panel">
-        <h1>Evo-Swarm</h1>
-        <p class="subtitle">Procedurally generated evolution.</p>
+        <h1>Apex Evolution</h1>
+        <p class="subtitle">Eat. Survive. Evolve.</p>
         
-        <h2>Drop Food (Click Canvas)</h2>
-        <div class="food-grid" id="food-palette">
-            </div>
+        <div class="hud-box">
+            <div style="color: #94a3b8; font-size: 0.9rem; text-transform: uppercase;">Unspent DNA</div>
+            <div class="dna-text" id="dna-display">0</div>
+            <div style="color: #64748b; font-size: 0.8rem;">Click canvas to dash (Costs 5 DNA)</div>
+        </div>
 
-        <h2>Live Population (<span id="total-count">0</span>)</h2>
-        <div id="stats-panel">
-            </div>
+        <h2>Evolution Tree</h2>
+        
+        <button class="upgrade-btn" id="upg-speed" onclick="buyUpgrade('speed')">
+            <span>⚡ Swiftness <br><span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">Lvl <span id="lvl-speed">1</span></span></span>
+            <span class="cost-badge" id="cost-speed">10</span>
+        </button>
+        
+        <button class="upgrade-btn" id="upg-size" onclick="buyUpgrade('size')">
+            <span>🛡️ Bulk <br><span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">Lvl <span id="lvl-size">1</span></span></span>
+            <span class="cost-badge" id="cost-size">15</span>
+        </button>
 
-        <button class="control-btn" onclick="spawnCells(10)">🦠 Spawn 10 Cells</button>
-        <button class="control-btn danger" onclick="clearWorld()">🗑️ Extinction Event</button>
+        <button class="upgrade-btn" id="upg-dash" onclick="buyUpgrade('dash')">
+            <span>🚀 Dash Power <br><span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">Lvl <span id="lvl-dash">1</span></span></span>
+            <span class="cost-badge" id="cost-dash">20</span>
+        </button>
+    </div>
+
+    <div id="game-over">
+        <h1>EATEN</h1>
+        <p style="font-size: 1.2rem; color: #cbd5e1;">Your DNA has rejoined the food chain.</p>
+        <button class="restart-btn" onclick="initGame()">Reincarnate</button>
     </div>
     
-    <div id="instructions">Select a food type and click the void to feed the swarm.</div>
-    <canvas id="ecosystem-canvas"></canvas>
+    <div id="instructions"><b>MOUSE</b> to move. <b>CLICK</b> to Dash. Eat green dots and smaller red cells. Avoid large ones!</div>
+    <canvas id="game-canvas"></canvas>
 
     <script>
-        const canvas = document.getElementById('ecosystem-canvas');
+        const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
         
         let width = window.innerWidth; let height = window.innerHeight;
         canvas.width = width; canvas.height = height;
 
-        // --- 1. THE DICTIONARY & GENERATION ENGINE ---
+        // --- GAME STATE ---
+        let mouse = { x: width/2, y: height/2, isDown: false };
+        let player, ais, foods, particles, dna;
+        let animationId;
         
-        const FOOD_TYPES = {
-            'Algae': { color: '#4ade80', emoji: '🌿' },
-            'Meat': { color: '#ef4444', emoji: '🥩' },
-            'Energy': { color: '#fbbf24', emoji: '⚡' },
-            'Toxin': { color: '#a855f7', emoji: '🧪' },
-            'Magma': { color: '#f97316', emoji: '🌋' },
-            'Ice': { color: '#38bdf8', emoji: '❄️' },
-            'Shadow': { color: '#1e293b', emoji: '🌑' },
-            'Crystal': { color: '#ec4899', emoji: '💎' }
-        };
+        const UPGRADE_COSTS = { speed: [10, 25, 50, 100, 999], size: [15, 30, 60, 120, 999], dash: [20, 40, 80, 150, 999] };
 
-        const SPECIES = {
-            'Cell': { color: '#ffffff', size: 4, speed: 1.5, sight: 50, diet: ['Algae'], turnsInto: {} },
-            'Herbivore': { color: '#22c55e', size: 6, speed: 2.0, sight: 80, diet: ['Algae'], turnsInto: {} },
-            'Carnivore': { color: '#ef4444', size: 8, speed: 2.5, sight: 120, diet: ['Meat', 'Herbivore', 'Cell'], turnsInto: {} },
-            
-            // Core Bases
-            'Slime': { color: '#34d399', size: 10, speed: 1.0, sight: 60, diet: ['Algae', 'Toxin'], turnsInto: {} },
-            'Beast': { color: '#b45309', size: 12, speed: 3.5, sight: 150, diet: ['Meat', 'Carnivore', 'Herbivore'], turnsInto: {} },
-            'Dragon': { color: '#dc2626', size: 18, speed: 4.0, sight: 250, diet: ['Meat', 'Beast', 'Energy'], turnsInto: {} },
-            'Leviathan': { color: '#0369a1', size: 25, speed: 2.0, sight: 300, diet: ['Meat', 'Dragon', 'Slime'], turnsInto: {} },
-            'Swarm': { color: '#fcd34d', size: 3, speed: 5.0, sight: 200, diet: ['Energy', 'Cell'], turnsInto: {} },
-            'Titan': { color: '#64748b', size: 30, speed: 0.8, sight: 400, diet: ['Meat', 'Leviathan', 'Dragon', 'Magma'], turnsInto: {} }
-        };
-
-        function addRecipe(base, food, result) {
-            if(SPECIES[base] && SPECIES[result]) SPECIES[base].turnsInto[food] = result;
-        }
-
-        // Setup early game paths
-        addRecipe('Cell', 'Algae', 'Herbivore');
-        addRecipe('Cell', 'Meat', 'Carnivore');
-        addRecipe('Cell', 'Toxin', 'Slime');
-        addRecipe('Herbivore', 'Meat', 'Carnivore');
-        addRecipe('Carnivore', 'Meat', 'Beast');
-        addRecipe('Beast', 'Magma', 'Dragon');
-        addRecipe('Beast', 'Ice', 'Leviathan');
-        addRecipe('Cell', 'Energy', 'Swarm');
-        addRecipe('Dragon', 'Shadow', 'Titan');
-
-        // PROCEDURAL MULTIPLIER (Builds hundreds of variants instantly)
-        const elements = [
-            { name: 'Fire', foodTrigger: 'Magma', color: '#ff4500' },
-            { name: 'Frost', foodTrigger: 'Ice', color: '#00ffff' },
-            { name: 'Toxic', foodTrigger: 'Toxin', color: '#8a2be2' },
-            { name: 'Volts', foodTrigger: 'Energy', color: '#ffd700' },
-            { name: 'Void', foodTrigger: 'Shadow', color: '#4b0082' },
-            { name: 'Gem', foodTrigger: 'Crystal', color: '#ff69b4' }
-        ];
-        const baseTypes = ['Slime', 'Beast', 'Dragon', 'Leviathan', 'Swarm', 'Titan'];
-
-        baseTypes.forEach(base => {
-            elements.forEach(el => {
-                const newName = `${el.name} ${base}`;
-                const baseStats = SPECIES[base];
+        // --- CLASSES ---
+        class Player {
+            constructor() {
+                this.x = width / 2; this.y = height / 2;
+                this.vx = 0; this.vy = 0;
                 
-                // 1. Create Species Stats
-                SPECIES[newName] = {
-                    color: el.color,
-                    size: baseStats.size * 1.1,
-                    speed: baseStats.speed * (el.name === 'Volts' ? 1.5 : 1.0),
-                    sight: baseStats.sight + 20,
-                    diet: [...baseStats.diet, el.foodTrigger],
-                    turnsInto: {}
-                };
+                // Stats (Upgradable)
+                this.level = { speed: 0, size: 0, dash: 0 };
+                this.baseSize = 12;
+                this.baseSpeed = 4;
+                this.dashMultiplier = 3;
                 
-                // 2. Wire the Recipe
-                addRecipe(base, el.foodTrigger, newName);
-                
-                // 3. Add Weakness (Cross-contamination resets them)
-                if (el.name === 'Fire') addRecipe(newName, 'Ice', 'Cell');
-                if (el.name === 'Frost') addRecipe(newName, 'Magma', 'Cell');
-            });
-        });
-
-        console.log(`Procedural Generation Complete: Loaded ${Object.keys(SPECIES).length} distinct species!`);
-
-        // --- 2. GAME STATE & UI ---
-        let creatures = []; let foods = []; let particles = [];
-        let selectedFood = 'Algae';
-
-        const foodPalette = document.getElementById('food-palette');
-        for (const [key, val] of Object.entries(FOOD_TYPES)) {
-            const btn = document.createElement('button');
-            btn.className = `food-btn ${key === selectedFood ? 'active' : ''}`;
-            btn.innerHTML = `<span>${val.emoji}</span><span>${key}</span>`;
-            btn.onclick = () => {
-                selectedFood = key;
-                document.querySelectorAll('.food-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            };
-            foodPalette.appendChild(btn);
-        }
-
-        // --- 3. CLASSES ---
-        class Creature {
-            constructor(x, y, speciesName) {
-                this.x = x; this.y = y;
-                this.vx = (Math.random() - 0.5) * 2; this.vy = (Math.random() - 0.5) * 2;
-                this.setSpecies(speciesName);
+                this.color = '#10b981';
+                this.dashTimer = 0;
             }
 
-            setSpecies(speciesName) {
-                this.species = speciesName;
-                const stats = SPECIES[speciesName];
-                this.color = stats.color; this.size = stats.size;
-                this.maxSpeed = stats.speed; this.sight = stats.sight;
-                this.diet = stats.diet; this.turnsInto = stats.turnsInto;
+            get size() { return this.baseSize + (this.level.size * 4); }
+            get maxSpeed() { return this.baseSpeed + (this.level.speed * 1.5); }
+            get currentDashMult() { return this.dashMultiplier + (this.level.dash * 1.0); }
+
+            update() {
+                // Skill: Smooth cursor tracking
+                const dx = mouse.x - this.x; const dy = mouse.y - this.y;
+                const dist = Math.hypot(dx, dy);
+                
+                let targetSpeed = dist > 5 ? this.maxSpeed : 0;
+                if (this.dashTimer > 0) {
+                    targetSpeed *= this.currentDashMult;
+                    this.dashTimer--;
+                    createParticles(this.x, this.y, this.color, 1);
+                }
+
+                if (dist > 0) {
+                    this.vx = (dx / dist) * targetSpeed;
+                    this.vy = (dy / dist) * targetSpeed;
+                }
+
+                // Inertia / Friction
+                this.x += this.vx; this.y += this.vy;
+
+                // Wall collisions (Bounce)
+                if (this.x < 300 + this.size) { this.x = 300 + this.size; }
+                if (this.x > width - this.size) { this.x = width - this.size; }
+                if (this.y < this.size) { this.y = this.size; }
+                if (this.y > height - this.size) { this.y = height - this.size; }
             }
 
-            evolve(newSpecies) {
-                createParticles(this.x, this.y, this.color);
-                this.setSpecies(newSpecies);
-                createParticles(this.x, this.y, this.color);
+            dash() {
+                if (dna >= 5 && this.dashTimer <= 0) {
+                    dna -= 5;
+                    this.dashTimer = 15;
+                    updateUI();
+                }
+            }
+
+            draw() {
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+                ctx.fill(); ctx.shadowBlur = 0;
+                
+                // Core
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill();
+            }
+        }
+
+        class AI {
+            constructor() {
+                this.x = 300 + Math.random() * (width - 300);
+                this.y = Math.random() * height;
+                this.vx = 0; this.vy = 0;
+                
+                // Randomly spawn different tiers of enemies
+                const tier = Math.random();
+                if (tier > 0.9) { this.size = 35; this.speed = 2.0; this.color = '#7f1d1d'; } // Leviathan
+                else if (tier > 0.6) { this.size = 20; this.speed = 3.0; this.color = '#ef4444'; } // Predator
+                else { this.size = 10; this.speed = 4.0; this.color = '#f87171'; } // Scavenger
             }
 
             update() {
-                let targetX = null; let targetY = null; let closestDist = this.sight;
-                let targetIsCreature = false; let targetObj = null;
+                // Simple AI Sim: Chase smaller, flee bigger
+                let targetX = null; let targetY = null;
+                let state = 'wander';
 
-                foods.forEach(f => {
-                    if (this.diet.includes(f.type)) {
-                        const d = Math.hypot(f.x - this.x, f.y - this.y);
-                        if (d < closestDist) { closestDist = d; targetX = f.x; targetY = f.y; targetObj = f; }
-                    }
-                });
-
-                if (!targetObj) {
-                    creatures.forEach(c => {
-                        if (c !== this && this.diet.includes(c.species)) {
-                            const d = Math.hypot(c.x - this.x, c.y - this.y);
-                            if (d < closestDist) { closestDist = d; targetX = c.x; targetY = c.y; targetIsCreature = true; targetObj = c; }
-                        }
-                    });
+                // Check Player
+                const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+                if (distToPlayer < 200) {
+                    if (player.size > this.size * 1.1) { state = 'flee'; targetX = player.x; targetY = player.y; }
+                    else if (this.size > player.size * 1.1) { state = 'chase'; targetX = player.x; targetY = player.y; }
                 }
 
-                if (targetX !== null) {
+                if (state === 'wander') {
+                    this.vx += (Math.random() - 0.5) * 1.0;
+                    this.vy += (Math.random() - 0.5) * 1.0;
+                } else if (state === 'chase') {
                     const angle = Math.atan2(targetY - this.y, targetX - this.x);
-                    this.vx += Math.cos(angle) * 0.15; this.vy += Math.sin(angle) * 0.15;
-
-                    if (closestDist < this.size + 4) {
-                        let eatenName = targetIsCreature ? targetObj.species : targetObj.type;
-                        if (targetIsCreature) { targetObj.dead = true; createParticles(targetObj.x, targetObj.y, '#ef4444'); } 
-                        else { targetObj.eaten = true; }
-
-                        if (this.turnsInto[eatenName]) this.evolve(this.turnsInto[eatenName]);
-                    }
-                } else {
-                    this.vx += (Math.random() - 0.5) * 0.5; this.vy += (Math.random() - 0.5) * 0.5;
+                    this.vx += Math.cos(angle) * 0.5; this.vy += Math.sin(angle) * 0.5;
+                } else if (state === 'flee') {
+                    const angle = Math.atan2(this.y - targetY, this.x - targetX); // Away from target
+                    this.vx += Math.cos(angle) * 0.5; this.vy += Math.sin(angle) * 0.5;
                 }
 
+                // Speed limit
                 const speed = Math.hypot(this.vx, this.vy);
-                if (speed > this.maxSpeed) { this.vx = (this.vx / speed) * this.maxSpeed; this.vy = (this.vy / speed) * this.maxSpeed; }
+                if (speed > this.speed) { this.vx = (this.vx / speed) * this.speed; this.vy = (this.vy / speed) * this.speed; }
 
                 this.x += this.vx; this.y += this.vy;
 
-                if (this.x < 340) this.x = width; if (this.x > width) this.x = 340;
+                // Screen Wrap for AI
+                if (this.x < 300) this.x = width; if (this.x > width) this.x = 300;
                 if (this.y < 0) this.y = height; if (this.y > height) this.y = 0;
             }
 
             draw() {
                 ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color; ctx.shadowBlur = 10; ctx.shadowColor = this.color;
-                ctx.fill(); ctx.shadowBlur = 0;
+                ctx.fillStyle = this.color; ctx.fill();
+                ctx.strokeStyle = '#450a0a'; ctx.lineWidth = 2; ctx.stroke();
             }
         }
 
-        class FoodDrop {
-            constructor(x, y, type) {
-                this.x = x; this.y = y; this.type = type;
-                this.color = FOOD_TYPES[type].color;
-                this.eaten = false; this.life = 1500;
+        class Food {
+            constructor() {
+                this.x = 300 + Math.random() * (width - 300);
+                this.y = Math.random() * height;
+                this.size = 3;
+                this.color = '#34d399';
             }
-            update() { this.life--; }
             draw() {
-                ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 ctx.fillStyle = this.color; ctx.fill();
             }
         }
@@ -253,72 +235,135 @@
         class Particle {
             constructor(x, y, color) {
                 this.x = x; this.y = y; this.color = color;
-                this.vx = (Math.random() - 0.5) * 6; this.vy = (Math.random() - 0.5) * 6;
-                this.life = 30; this.maxLife = 30;
+                this.vx = (Math.random() - 0.5) * 8; this.vy = (Math.random() - 0.5) * 8;
+                this.life = 20; this.maxLife = 20;
             }
             update() { this.x += this.vx; this.y += this.vy; this.life--; }
             draw() {
                 ctx.globalAlpha = this.life / this.maxLife;
-                ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 3, 3);
+                ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 4, 4);
                 ctx.globalAlpha = 1.0;
             }
         }
 
-        function createParticles(x, y, color) {
-            for(let i=0; i<10; i++) particles.push(new Particle(x, y, color));
+        function createParticles(x, y, color, count = 10) {
+            for(let i=0; i<count; i++) particles.push(new Particle(x, y, color));
         }
 
-        // --- 4. CONTROLS & RENDER LOOP ---
-        canvas.addEventListener('mousedown', (e) => {
-            if (e.clientX > 340) {
-                for(let i=0; i<3; i++) foods.push(new FoodDrop(e.clientX + (Math.random()*20-10), e.clientY + (Math.random()*20-10), selectedFood));
-            }
-        });
-
-        window.spawnCells = function(amount) {
-            for(let i=0; i<amount; i++) creatures.push(new Creature(340 + Math.random()*(width-340), Math.random()*height, 'Cell'));
-        }
-
-        window.clearWorld = function() { creatures = []; foods = []; }
-
-        function updateStats() {
-            const counts = {};
-            creatures.forEach(c => { counts[c.species] = (counts[c.species] || 0) + 1; });
+        // --- GAME LOGIC ---
+        function initGame() {
+            document.getElementById('game-over').style.display = 'none';
+            player = new Player();
+            ais = []; foods = []; particles = [];
+            dna = 0;
             
-            let html = '';
-            for (const [species, count] of Object.entries(counts).sort((a,b) => b[1] - a[1])) {
-                html += `<div class="stat-row">
-                    <span style="color: ${SPECIES[species].color}; font-weight:bold;">${species}</span>
-                    <span>${count}</span>
-                </div>`;
+            for(let i=0; i<50; i++) foods.push(new Food());
+            for(let i=0; i<15; i++) ais.push(new AI());
+            
+            updateUI();
+            if(animationId) cancelAnimationFrame(animationId);
+            animate();
+        }
+
+        function checkCollisions() {
+            // Player eats food
+            for (let i = foods.length - 1; i >= 0; i--) {
+                const f = foods[i];
+                if (Math.hypot(player.x - f.x, player.y - f.y) < player.size + f.size) {
+                    dna += 1;
+                    foods.splice(i, 1);
+                    foods.push(new Food()); // respawn
+                    updateUI();
+                }
             }
-            document.getElementById('stats-panel').innerHTML = html || '<div style="color:#64748b; text-align:center; margin-top:20px;">Ecosystem is empty.</div>';
-            document.getElementById('total-count').innerText = creatures.length;
+
+            // Player vs AI
+            for (let i = ais.length - 1; i >= 0; i--) {
+                const ai = ais[i];
+                const dist = Math.hypot(player.x - ai.x, player.y - ai.y);
+                
+                if (dist < player.size + ai.size * 0.5) { // Collision occurs
+                    // You must be 10% larger to eat them
+                    if (player.size > ai.size * 1.1) {
+                        dna += Math.floor(ai.size);
+                        createParticles(ai.x, ai.y, ai.color);
+                        ais.splice(i, 1);
+                        ais.push(new AI()); // respawn
+                        updateUI();
+                    } else if (ai.size > player.size * 1.1) {
+                        // Game Over
+                        createParticles(player.x, player.y, player.color, 30);
+                        document.getElementById('game-over').style.display = 'flex';
+                        cancelAnimationFrame(animationId);
+                        return true; // Stop game loop
+                    }
+                }
+            }
+            return false;
+        }
+
+        // --- CONTROLS & UI ---
+        canvas.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        canvas.addEventListener('mousedown', () => { player.dash(); });
+
+        window.buyUpgrade = function(type) {
+            const cost = UPGRADE_COSTS[type][player.level[type]];
+            if (dna >= cost) {
+                dna -= cost;
+                player.level[type]++;
+                createParticles(player.x, player.y, '#38bdf8', 20); // Level up effect
+                updateUI();
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('dna-display').innerText = dna;
+            
+            ['speed', 'size', 'dash'].forEach(type => {
+                const lvl = player.level[type];
+                const cost = UPGRADE_COSTS[type][lvl];
+                const btn = document.getElementById(`upg-${type}`);
+                
+                document.getElementById(`lvl-${type}`).innerText = lvl + 1;
+                
+                if (cost === 999) {
+                    document.getElementById(`cost-${type}`).innerText = 'MAX';
+                    btn.disabled = true;
+                } else {
+                    document.getElementById(`cost-${type}`).innerText = cost;
+                    btn.disabled = dna < cost;
+                }
+            });
         }
 
         function animate() {
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.3)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Motion blur trail
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.4)'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            foods = foods.filter(f => !f.eaten && f.life > 0);
-            foods.forEach(f => { f.update(); f.draw(); });
+            // Draw boundaries
+            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(300, 0); ctx.lineTo(300, height); ctx.stroke();
 
-            creatures = creatures.filter(c => !c.dead);
-            creatures.forEach(c => { c.update(); c.draw(); });
+            foods.forEach(f => f.draw());
+            ais.forEach(ai => { ai.update(); ai.draw(); });
+            
+            player.update();
+            if (checkCollisions()) return; // Halts if game over
+            player.draw();
 
             particles = particles.filter(p => p.life > 0);
             particles.forEach(p => { p.update(); p.draw(); });
 
-            if(Math.random() < 0.05) updateStats();
-            requestAnimationFrame(animate);
+            animationId = requestAnimationFrame(animate);
         }
-
-        spawnCells(15);
-        animate();
 
         window.addEventListener('resize', () => {
             width = window.innerWidth; height = window.innerHeight;
             canvas.width = width; canvas.height = height;
         });
+
+        initGame();
     </script>
 </body>
 </html>
