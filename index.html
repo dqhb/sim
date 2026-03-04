@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>evosim</title>
+    <title>Apex Evolution - WASD Arena</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #020617; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; user-select: none; cursor: crosshair; }
-        canvas { display: block; }
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
         
         #ui-panel {
-            position: absolute; top: 0; left: 0; width: 300px; height: 100%;
-            background: rgba(15, 23, 42, 0.9); border-right: 2px solid #334155;
+            position: absolute; top: 0; left: 0; width: 320px; height: 100%;
+            background: rgba(15, 23, 42, 0.95); border-right: 2px solid #334155;
             display: flex; flex-direction: column; padding: 20px; box-sizing: border-box;
             box-shadow: 5px 0 20px rgba(0,0,0,0.8); z-index: 10;
         }
@@ -19,8 +19,10 @@
         p.subtitle { margin: 0 0 20px 0; font-size: 0.85rem; color: #94a3b8; }
         
         .hud-box { background: #1e293b; border: 1px solid #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
-        .dna-text { font-size: 2rem; font-weight: bold; color: #38bdf8; margin: 5px 0; }
+        .dna-text { font-size: 2.5rem; font-weight: bold; color: #38bdf8; margin: 5px 0; }
         
+        .buff-container { height: 30px; margin-bottom: 10px; color: #a855f7; font-weight: bold; text-transform: uppercase; font-size: 0.9rem;}
+
         h2 { margin: 10px 0; font-size: 1rem; color: #cbd5e1; border-bottom: 1px solid #475569; padding-bottom: 5px; }
         
         .upgrade-btn {
@@ -35,32 +37,32 @@
 
         #game-over {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: none; flex-direction: column;
+            background: rgba(0,0,0,0.85); display: none; flex-direction: column;
             justify-content: center; align-items: center; z-index: 50;
         }
-        #game-over h1 { color: #ef4444; font-size: 4rem; margin-bottom: 10px; }
+        #game-over h1 { color: #ef4444; font-size: 5rem; margin-bottom: 10px; text-shadow: 0 0 20px #ef4444; }
         .restart-btn { background: #10b981; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 20px; text-transform: uppercase; }
         .restart-btn:hover { background: #059669; }
         
-        #instructions { position: absolute; bottom: 20px; left: 320px; color: rgba(255,255,255,0.5); pointer-events: none; }
+        #instructions { position: absolute; bottom: 20px; left: 340px; color: rgba(255,255,255,0.7); pointer-events: none; z-index: 10; font-size: 1.1rem; text-shadow: 1px 1px 2px black;}
     </style>
 </head>
 <body>
 
     <div id="ui-panel">
         <h1>Apex Evolution</h1>
-        <p class="subtitle">Eat. Survive. Evolve.</p>
+        <p class="subtitle">WASD to Move. Mouse to Aim. Space to Shoot.</p>
         
         <div class="hud-box">
-            <div style="color: #94a3b8; font-size: 0.9rem; text-transform: uppercase;">Unspent DNA</div>
+            <div style="color: #94a3b8; font-size: 0.9rem; text-transform: uppercase;">DNA Bank</div>
             <div class="dna-text" id="dna-display">0</div>
-            <div style="color: #64748b; font-size: 0.8rem;">Click canvas to dash (Costs 5 DNA)</div>
+            <div class="buff-container" id="buff-display"></div>
         </div>
 
-        <h2>Evolution Tree</h2>
+        <h2>Upgrades</h2>
         
         <button class="upgrade-btn" id="upg-speed" onclick="buyUpgrade('speed')">
-            <span>⚡ Swiftness <br><span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">Lvl <span id="lvl-speed">1</span></span></span>
+            <span>⚡ Agility <br><span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">Lvl <span id="lvl-speed">1</span></span></span>
             <span class="cost-badge" id="cost-speed">10</span>
         </button>
         
@@ -70,18 +72,22 @@
         </button>
 
         <button class="upgrade-btn" id="upg-dash" onclick="buyUpgrade('dash')">
-            <span>🚀 Dash Power <br><span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">Lvl <span id="lvl-dash">1</span></span></span>
+            <span>🧪 Toxin Damage <br><span style="font-size:0.75rem; color:#94a3b8; font-weight:normal;">Lvl <span id="lvl-dash">1</span></span></span>
             <span class="cost-badge" id="cost-dash">20</span>
         </button>
     </div>
 
     <div id="game-over">
         <h1>EATEN</h1>
-        <p style="font-size: 1.2rem; color: #cbd5e1;">Your DNA has rejoined the food chain.</p>
+        <p style="font-size: 1.5rem; color: #cbd5e1;">You became food for the swarm.</p>
         <button class="restart-btn" onclick="initGame()">Reincarnate</button>
     </div>
     
-    <div id="instructions"><b>MOUSE</b> to move. <b>CLICK</b> to Dash. Eat green dots and smaller red cells. Avoid large ones!</div>
+    <div id="instructions">
+        <b>[WASD]</b> Move | <b>[Space]</b> or <b>[Left Click]</b> Shoot (Costs 2 DNA) <br>
+        Hunt <span style="color:#34d399">Green</span>. Shrink <span style="color:#ef4444">Red</span> predators. Collect <span style="color:#a855f7">Purple</span> Powerups!
+    </div>
+    
     <canvas id="game-canvas"></canvas>
 
     <script>
@@ -91,140 +97,174 @@
         let width = window.innerWidth; let height = window.innerHeight;
         canvas.width = width; canvas.height = height;
 
-        // --- GAME STATE ---
-        let mouse = { x: width/2, y: height/2, isDown: false };
-        let player, ais, foods, particles, dna;
+        // --- GAME CONSTANTS & STATE ---
+        const WORLD_SIZE = 4000;
+        let keys = { w: false, a: false, s: false, d: false };
+        let mouse = { x: width/2, y: height/2, worldX: 0, worldY: 0 };
+        let camera = { x: 0, y: 0 };
+        
+        let player, ais, foods, projectiles, particles, boosters, dna;
         let animationId;
         
-        const UPGRADE_COSTS = { speed: [10, 25, 50, 100, 999], size: [15, 30, 60, 120, 999], dash: [20, 40, 80, 150, 999] };
+        const UPGRADE_COSTS = { speed: [10, 25, 50, 100, 999], size: [15, 30, 60, 120, 999], dash: [20, 40, 80, 150, 999] }; // 'dash' is now Damage
 
         // --- CLASSES ---
         class Player {
             constructor() {
-                this.x = width / 2; this.y = height / 2;
+                this.x = WORLD_SIZE / 2; this.y = WORLD_SIZE / 2;
                 this.vx = 0; this.vy = 0;
                 
-                // Stats (Upgradable)
-                this.level = { speed: 0, size: 0, dash: 0 };
-                this.baseSize = 12;
-                this.baseSpeed = 4;
-                this.dashMultiplier = 3;
-                
+                this.level = { speed: 0, size: 0, dash: 0 }; // dash = damage
+                this.baseSize = 15;
+                this.baseSpeed = 5;
                 this.color = '#10b981';
-                this.dashTimer = 0;
+                
+                this.shootCooldown = 0;
+                this.buffTimer = 0; // Supercharge damage booster
             }
 
-            get size() { return this.baseSize + (this.level.size * 4); }
+            get size() { return this.baseSize + (this.level.size * 5); }
             get maxSpeed() { return this.baseSpeed + (this.level.speed * 1.5); }
-            get currentDashMult() { return this.dashMultiplier + (this.level.dash * 1.0); }
+            get damage() { return (5 + (this.level.dash * 3)) * (this.buffTimer > 0 ? 3 : 1); }
 
             update() {
-                // Skill: Smooth cursor tracking
-                const dx = mouse.x - this.x; const dy = mouse.y - this.y;
-                const dist = Math.hypot(dx, dy);
-                
-                let targetSpeed = dist > 5 ? this.maxSpeed : 0;
-                if (this.dashTimer > 0) {
-                    targetSpeed *= this.currentDashMult;
-                    this.dashTimer--;
-                    createParticles(this.x, this.y, this.color, 1);
+                // WASD Movement
+                let dx = 0; let dy = 0;
+                if (keys.w) dy -= 1; if (keys.s) dy += 1;
+                if (keys.a) dx -= 1; if (keys.d) dx += 1;
+
+                // Normalize diagonal speed
+                if (dx !== 0 && dy !== 0) {
+                    const length = Math.hypot(dx, dy);
+                    dx /= length; dy /= length;
                 }
 
-                if (dist > 0) {
-                    this.vx = (dx / dist) * targetSpeed;
-                    this.vy = (dy / dist) * targetSpeed;
-                }
+                // Apply velocity with smooth friction
+                this.vx += (dx * this.maxSpeed - this.vx) * 0.15;
+                this.vy += (dy * this.maxSpeed - this.vy) * 0.15;
 
-                // Inertia / Friction
                 this.x += this.vx; this.y += this.vy;
 
-                // Wall collisions (Bounce)
-                if (this.x < 300 + this.size) { this.x = 300 + this.size; }
-                if (this.x > width - this.size) { this.x = width - this.size; }
-                if (this.y < this.size) { this.y = this.size; }
-                if (this.y > height - this.size) { this.y = height - this.size; }
+                // World Bounds
+                if (this.x < this.size) this.x = this.size;
+                if (this.x > WORLD_SIZE - this.size) this.x = WORLD_SIZE - this.size;
+                if (this.y < this.size) this.y = this.size;
+                if (this.y > WORLD_SIZE - this.size) this.y = WORLD_SIZE - this.size;
+
+                if (this.shootCooldown > 0) this.shootCooldown--;
+                if (this.buffTimer > 0) {
+                    this.buffTimer--;
+                    if(this.buffTimer === 0) updateUI(); // Clear text
+                    if(Math.random() < 0.2) createParticles(this.x, this.y, '#a855f7', 1);
+                }
             }
 
-            dash() {
-                if (dna >= 5 && this.dashTimer <= 0) {
-                    dna -= 5;
-                    this.dashTimer = 15;
+            shoot() {
+                if (dna >= 2 && this.shootCooldown <= 0) {
+                    dna -= 2;
+                    this.shootCooldown = 15; // Fire rate
+                    
+                    const angle = Math.atan2(mouse.worldY - this.y, mouse.worldX - this.x);
+                    const projSize = this.buffTimer > 0 ? 8 : 5;
+                    projectiles.push(new Projectile(this.x, this.y, angle, this.damage, projSize));
                     updateUI();
                 }
             }
 
             draw() {
+                // Outer ring (glows purple if buffed)
                 ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+                ctx.fillStyle = this.buffTimer > 0 ? '#a855f7' : this.color;
+                ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle;
                 ctx.fill(); ctx.shadowBlur = 0;
                 
-                // Core
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 0.4, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill();
+                // Inner core
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+
+                // Draw aiming line
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                const aimDist = this.size + 15;
+                const angle = Math.atan2(mouse.worldY - this.y, mouse.worldX - this.x);
+                ctx.lineTo(this.x + Math.cos(angle)*aimDist, this.y + Math.sin(angle)*aimDist);
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, angle, damage, size) {
+                this.x = x + Math.cos(angle) * 20;
+                this.y = y + Math.sin(angle) * 20;
+                const speed = 12;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.damage = damage;
+                this.size = size;
+                this.color = '#38bdf8';
+                this.life = 100;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.life--; }
+            draw() {
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+                ctx.fill(); ctx.shadowBlur = 0;
             }
         }
 
         class AI {
             constructor() {
-                this.x = 300 + Math.random() * (width - 300);
-                this.y = Math.random() * height;
+                this.x = Math.random() * WORLD_SIZE; this.y = Math.random() * WORLD_SIZE;
                 this.vx = 0; this.vy = 0;
                 
-                // Randomly spawn different tiers of enemies
                 const tier = Math.random();
-                if (tier > 0.9) { this.size = 35; this.speed = 2.0; this.color = '#7f1d1d'; } // Leviathan
-                else if (tier > 0.6) { this.size = 20; this.speed = 3.0; this.color = '#ef4444'; } // Predator
-                else { this.size = 10; this.speed = 4.0; this.color = '#f87171'; } // Scavenger
+                if (tier > 0.8) { this.size = 60; this.speed = 2.5; this.color = '#7f1d1d'; } // Boss
+                else if (tier > 0.4) { this.size = 35; this.speed = 3.5; this.color = '#ef4444'; } // Predator
+                else { this.size = 15; this.speed = 4.5; this.color = '#f87171'; } // Scavenger
             }
 
             update() {
-                // Simple AI Sim: Chase smaller, flee bigger
-                let targetX = null; let targetY = null;
-                let state = 'wander';
+                let targetX = null; let targetY = null; let state = 'wander';
 
-                // Check Player
+                // Detect Player
                 const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
-                if (distToPlayer < 200) {
+                if (distToPlayer < 400) { // Sight radius
                     if (player.size > this.size * 1.1) { state = 'flee'; targetX = player.x; targetY = player.y; }
                     else if (this.size > player.size * 1.1) { state = 'chase'; targetX = player.x; targetY = player.y; }
                 }
 
                 if (state === 'wander') {
-                    this.vx += (Math.random() - 0.5) * 1.0;
-                    this.vy += (Math.random() - 0.5) * 1.0;
+                    this.vx += (Math.random() - 0.5) * 0.5; this.vy += (Math.random() - 0.5) * 0.5;
                 } else if (state === 'chase') {
                     const angle = Math.atan2(targetY - this.y, targetX - this.x);
-                    this.vx += Math.cos(angle) * 0.5; this.vy += Math.sin(angle) * 0.5;
+                    this.vx += Math.cos(angle) * 0.4; this.vy += Math.sin(angle) * 0.4;
                 } else if (state === 'flee') {
-                    const angle = Math.atan2(this.y - targetY, this.x - targetX); // Away from target
-                    this.vx += Math.cos(angle) * 0.5; this.vy += Math.sin(angle) * 0.5;
+                    const angle = Math.atan2(this.y - targetY, this.x - targetX);
+                    this.vx += Math.cos(angle) * 0.6; this.vy += Math.sin(angle) * 0.6;
                 }
 
-                // Speed limit
                 const speed = Math.hypot(this.vx, this.vy);
                 if (speed > this.speed) { this.vx = (this.vx / speed) * this.speed; this.vy = (this.vy / speed) * this.speed; }
 
                 this.x += this.vx; this.y += this.vy;
 
-                // Screen Wrap for AI
-                if (this.x < 300) this.x = width; if (this.x > width) this.x = 300;
-                if (this.y < 0) this.y = height; if (this.y > height) this.y = 0;
+                // Bounce off world walls
+                if (this.x < this.size || this.x > WORLD_SIZE - this.size) this.vx *= -1;
+                if (this.y < this.size || this.y > WORLD_SIZE - this.size) this.vy *= -1;
             }
 
             draw() {
                 ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 ctx.fillStyle = this.color; ctx.fill();
-                ctx.strokeStyle = '#450a0a'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.strokeStyle = '#450a0a'; ctx.lineWidth = 3; ctx.stroke();
             }
         }
 
         class Food {
             constructor() {
-                this.x = 300 + Math.random() * (width - 300);
-                this.y = Math.random() * height;
-                this.size = 3;
-                this.color = '#34d399';
+                this.x = Math.random() * WORLD_SIZE; this.y = Math.random() * WORLD_SIZE;
+                this.size = 4; this.color = '#34d399';
             }
             draw() {
                 ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
@@ -232,11 +272,28 @@
             }
         }
 
+        class Booster {
+            constructor() {
+                this.x = Math.random() * WORLD_SIZE; this.y = Math.random() * WORLD_SIZE;
+                this.size = 10; this.color = '#a855f7';
+                this.pulse = 0;
+            }
+            draw() {
+                this.pulse += 0.1;
+                const glow = Math.abs(Math.sin(this.pulse)) * 10 + 5;
+                
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; ctx.shadowBlur = glow; ctx.shadowColor = this.color;
+                ctx.fill(); ctx.shadowBlur = 0;
+            }
+        }
+
         class Particle {
-            constructor(x, y, color) {
+            constructor(x, y, color, speedScale = 1) {
                 this.x = x; this.y = y; this.color = color;
-                this.vx = (Math.random() - 0.5) * 8; this.vy = (Math.random() - 0.5) * 8;
-                this.life = 20; this.maxLife = 20;
+                this.vx = (Math.random() - 0.5) * 8 * speedScale; 
+                this.vy = (Math.random() - 0.5) * 8 * speedScale;
+                this.life = 25; this.maxLife = 25;
             }
             update() { this.x += this.vx; this.y += this.vy; this.life--; }
             draw() {
@@ -246,19 +303,20 @@
             }
         }
 
-        function createParticles(x, y, color, count = 10) {
-            for(let i=0; i<count; i++) particles.push(new Particle(x, y, color));
+        function createParticles(x, y, color, amount = 10, speedScale = 1) {
+            for(let i=0; i<amount; i++) particles.push(new Particle(x, y, color, speedScale));
         }
 
-        // --- GAME LOGIC ---
+        // --- CORE LOGIC ---
         function initGame() {
             document.getElementById('game-over').style.display = 'none';
             player = new Player();
-            ais = []; foods = []; particles = [];
+            ais = []; foods = []; projectiles = []; particles = []; boosters = [];
             dna = 0;
             
-            for(let i=0; i<50; i++) foods.push(new Food());
-            for(let i=0; i<15; i++) ais.push(new AI());
+            for(let i=0; i<400; i++) foods.push(new Food());
+            for(let i=0; i<50; i++) ais.push(new AI());
+            for(let i=0; i<15; i++) boosters.push(new Booster());
             
             updateUI();
             if(animationId) cancelAnimationFrame(animationId);
@@ -266,58 +324,88 @@
         }
 
         function checkCollisions() {
-            // Player eats food
+            // Player vs Food
             for (let i = foods.length - 1; i >= 0; i--) {
-                const f = foods[i];
-                if (Math.hypot(player.x - f.x, player.y - f.y) < player.size + f.size) {
-                    dna += 1;
-                    foods.splice(i, 1);
-                    foods.push(new Food()); // respawn
-                    updateUI();
+                if (Math.hypot(player.x - foods[i].x, player.y - foods[i].y) < player.size + foods[i].size) {
+                    dna += 1; foods.splice(i, 1); foods.push(new Food()); updateUI();
                 }
+            }
+
+            // Player vs Boosters
+            for (let i = boosters.length - 1; i >= 0; i--) {
+                if (Math.hypot(player.x - boosters[i].x, player.y - boosters[i].y) < player.size + boosters[i].size) {
+                    player.buffTimer = 600; // 10 seconds at 60fps
+                    createParticles(boosters[i].x, boosters[i].y, boosters[i].color, 30, 2);
+                    boosters.splice(i, 1); boosters.push(new Booster());
+                    document.getElementById('buff-display').innerText = "🔥 SUPERCHARGE ACTIVE 🔥";
+                }
+            }
+
+            // Projectiles vs AI
+            for (let p = projectiles.length - 1; p >= 0; p--) {
+                let hit = false;
+                for (let a = ais.length - 1; a >= 0; a--) {
+                    if (Math.hypot(projectiles[p].x - ais[a].x, projectiles[p].y - ais[a].y) < projectiles[p].size + ais[a].size) {
+                        // Shrink the AI
+                        ais[a].size -= projectiles[p].damage;
+                        createParticles(ais[a].x, ais[a].y, ais[a].color, 5);
+                        
+                        if (ais[a].size < 10) { // Killed it
+                            createParticles(ais[a].x, ais[a].y, ais[a].color, 20);
+                            ais.splice(a, 1); ais.push(new AI());
+                        }
+                        hit = true; break;
+                    }
+                }
+                if (hit) projectiles.splice(p, 1);
             }
 
             // Player vs AI
             for (let i = ais.length - 1; i >= 0; i--) {
                 const ai = ais[i];
-                const dist = Math.hypot(player.x - ai.x, player.y - ai.y);
-                
-                if (dist < player.size + ai.size * 0.5) { // Collision occurs
-                    // You must be 10% larger to eat them
+                if (Math.hypot(player.x - ai.x, player.y - ai.y) < player.size + ai.size * 0.7) { 
                     if (player.size > ai.size * 1.1) {
-                        dna += Math.floor(ai.size);
-                        createParticles(ai.x, ai.y, ai.color);
-                        ais.splice(i, 1);
-                        ais.push(new AI()); // respawn
-                        updateUI();
+                        // Eat them
+                        dna += Math.floor(ai.size * 2);
+                        createParticles(ai.x, ai.y, ai.color, 20);
+                        ais.splice(i, 1); ais.push(new AI()); updateUI();
                     } else if (ai.size > player.size * 1.1) {
                         // Game Over
-                        createParticles(player.x, player.y, player.color, 30);
+                        createParticles(player.x, player.y, player.color, 50, 3);
                         document.getElementById('game-over').style.display = 'flex';
-                        cancelAnimationFrame(animationId);
-                        return true; // Stop game loop
+                        return true; 
                     }
                 }
             }
             return false;
         }
 
-        // --- CONTROLS & UI ---
-        canvas.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
-        canvas.addEventListener('mousedown', () => { player.dash(); });
+        // --- INPUT & UI ---
+        window.addEventListener('keydown', e => { 
+            if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; 
+            if(e.code === 'Space') player.shoot();
+        });
+        window.addEventListener('keyup', e => { 
+            if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; 
+        });
+        
+        canvas.addEventListener('mousemove', e => { 
+            mouse.x = e.clientX; mouse.y = e.clientY; 
+        });
+        canvas.addEventListener('mousedown', () => player.shoot());
 
         window.buyUpgrade = function(type) {
             const cost = UPGRADE_COSTS[type][player.level[type]];
             if (dna >= cost) {
-                dna -= cost;
-                player.level[type]++;
-                createParticles(player.x, player.y, '#38bdf8', 20); // Level up effect
+                dna -= cost; player.level[type]++;
+                createParticles(player.x, player.y, '#38bdf8', 30, 2);
                 updateUI();
             }
         }
 
         function updateUI() {
             document.getElementById('dna-display').innerText = dna;
+            if(player.buffTimer <= 0) document.getElementById('buff-display').innerText = "";
             
             ['speed', 'size', 'dash'].forEach(type => {
                 const lvl = player.level[type];
@@ -327,34 +415,64 @@
                 document.getElementById(`lvl-${type}`).innerText = lvl + 1;
                 
                 if (cost === 999) {
-                    document.getElementById(`cost-${type}`).innerText = 'MAX';
-                    btn.disabled = true;
+                    document.getElementById(`cost-${type}`).innerText = 'MAX'; btn.disabled = true;
                 } else {
-                    document.getElementById(`cost-${type}`).innerText = cost;
-                    btn.disabled = dna < cost;
+                    document.getElementById(`cost-${type}`).innerText = cost; btn.disabled = dna < cost;
                 }
             });
         }
 
-        function animate() {
-            // Motion blur trail
-            ctx.fillStyle = 'rgba(2, 6, 23, 0.4)'; 
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        function drawGrid() {
+            ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
+            const gridSize = 100;
+            
+            // Draw grid lines relative to camera
+            const startX = Math.floor(camera.x / gridSize) * gridSize;
+            const startY = Math.floor(camera.y / gridSize) * gridSize;
+            
+            ctx.beginPath();
+            for (let x = startX; x < camera.x + width; x += gridSize) { ctx.moveTo(x, camera.y); ctx.lineTo(x, camera.y + height); }
+            for (let y = startY; y < camera.y + height; y += gridSize) { ctx.moveTo(camera.x, y); ctx.lineTo(camera.x + width, y); }
+            ctx.stroke();
 
-            // Draw boundaries
-            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(300, 0); ctx.lineTo(300, height); ctx.stroke();
+            // Draw World Borders
+            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 10;
+            ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+        }
+
+        function animate() {
+            ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, width, height);
+
+            // Update mouse world coordinates based on camera
+            mouse.worldX = mouse.x + camera.x;
+            mouse.worldY = mouse.y + camera.y;
+
+            // Camera follow player (centered in screen, offset by UI panel)
+            const uiOffset = 320 / 2; 
+            camera.x = player.x - width/2 - uiOffset;
+            camera.y = player.y - height/2;
+
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y);
+
+            drawGrid();
 
             foods.forEach(f => f.draw());
+            boosters.forEach(b => b.draw());
+            
+            projectiles = projectiles.filter(p => p.life > 0);
+            projectiles.forEach(p => { p.update(); p.draw(); });
+
             ais.forEach(ai => { ai.update(); ai.draw(); });
             
             player.update();
-            if (checkCollisions()) return; // Halts if game over
+            if (checkCollisions()) { ctx.restore(); return; } 
             player.draw();
 
             particles = particles.filter(p => p.life > 0);
             particles.forEach(p => { p.update(); p.draw(); });
 
+            ctx.restore();
             animationId = requestAnimationFrame(animate);
         }
 
