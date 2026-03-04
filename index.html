@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Evolution Ecosystem Prototype</title>
+    <title>Evo-Swarm: Infinite Engine</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; user-select: none; }
         canvas { display: block; }
         
         #ui-panel {
-            position: absolute; top: 0; left: 0; width: 320px; height: 100%;
+            position: absolute; top: 0; left: 0; width: 340px; height: 100%;
             background: rgba(30, 41, 59, 0.95); border-right: 2px solid #334155;
             display: flex; flex-direction: column; padding: 20px; box-sizing: border-box;
             box-shadow: 5px 0 20px rgba(0,0,0,0.5); z-index: 10;
         }
         
-        h1 { margin: 0 0 10px 0; font-size: 1.5rem; color: #38bdf8; text-transform: uppercase; }
+        h1 { margin: 0 0 5px 0; font-size: 1.5rem; color: #38bdf8; text-transform: uppercase; }
         p.subtitle { margin: 0 0 20px 0; font-size: 0.85rem; color: #94a3b8; }
         
         h2 { margin: 10px 0; font-size: 1rem; color: #cbd5e1; border-bottom: 1px solid #475569; padding-bottom: 5px; }
@@ -37,80 +37,120 @@
         .control-btn.danger { background: #ef4444; }
         .control-btn.danger:hover { background: #dc2626; }
         
-        #instructions { position: absolute; bottom: 20px; left: 340px; color: rgba(255,255,255,0.6); pointer-events: none; font-size: 1.2rem; }
+        #instructions { position: absolute; bottom: 20px; left: 360px; color: rgba(255,255,255,0.6); pointer-events: none; font-size: 1.2rem; }
     </style>
 </head>
 <body>
 
     <div id="ui-panel">
         <h1>Evo-Swarm</h1>
-        <p class="subtitle">Discover new species by feeding them!</p>
+        <p class="subtitle">Procedurally generated evolution.</p>
         
         <h2>Drop Food (Click Canvas)</h2>
         <div class="food-grid" id="food-palette">
             </div>
 
-        <h2>Population Stats</h2>
+        <h2>Live Population (<span id="total-count">0</span>)</h2>
         <div id="stats-panel">
             </div>
 
-        <button class="control-btn" onclick="spawnCells(5)">🦠 Spawn 5 Basic Cells</button>
-        <button class="control-btn danger" onclick="clearWorld()">🗑️ Extinction (Clear)</button>
+        <button class="control-btn" onclick="spawnCells(10)">🦠 Spawn 10 Cells</button>
+        <button class="control-btn danger" onclick="clearWorld()">🗑️ Extinction Event</button>
     </div>
     
-    <div id="instructions">Select a food type and click to drop it into the ecosystem.</div>
+    <div id="instructions">Select a food type and click the void to feed the swarm.</div>
     <canvas id="ecosystem-canvas"></canvas>
 
     <script>
         const canvas = document.getElementById('ecosystem-canvas');
         const ctx = canvas.getContext('2d');
         
-        let width = window.innerWidth;
-        let height = window.innerHeight;
+        let width = window.innerWidth; let height = window.innerHeight;
         canvas.width = width; canvas.height = height;
 
-        // --- 1. THE DICTIONARY (Infinite Craft Engine) ---
-        // Here is where you can easily add up to 50+ foods and species!
+        // --- 1. THE DICTIONARY & GENERATION ENGINE ---
         
         const FOOD_TYPES = {
             'Algae': { color: '#4ade80', emoji: '🌿' },
             'Meat': { color: '#ef4444', emoji: '🥩' },
             'Energy': { color: '#fbbf24', emoji: '⚡' },
-            'Toxin': { color: '#a855f7', emoji: '🧪' }
+            'Toxin': { color: '#a855f7', emoji: '🧪' },
+            'Magma': { color: '#f97316', emoji: '🌋' },
+            'Ice': { color: '#38bdf8', emoji: '❄️' },
+            'Shadow': { color: '#1e293b', emoji: '🌑' },
+            'Crystal': { color: '#ec4899', emoji: '💎' }
         };
 
         const SPECIES = {
             'Cell': { color: '#ffffff', size: 4, speed: 1.5, sight: 50, diet: ['Algae'], turnsInto: {} },
             'Herbivore': { color: '#22c55e', size: 6, speed: 2.0, sight: 80, diet: ['Algae'], turnsInto: {} },
-            'Carnivore': { color: '#ef4444', size: 8, speed: 2.5, sight: 120, diet: ['Meat', 'Herbivore'], turnsInto: {} },
-            'Electric Swarm': { color: '#fbbf24', size: 5, speed: 4.0, sight: 150, diet: ['Energy'], turnsInto: {} },
-            'Toxic Blob': { color: '#a855f7', size: 10, speed: 1.0, sight: 60, diet: ['Toxin', 'Carnivore'], turnsInto: {} },
-            'Apex Leviathan': { color: '#f87171', size: 15, speed: 3.0, sight: 200, diet: ['Meat', 'Carnivore', 'Electric Swarm'], turnsInto: {} }
+            'Carnivore': { color: '#ef4444', size: 8, speed: 2.5, sight: 120, diet: ['Meat', 'Herbivore', 'Cell'], turnsInto: {} },
+            
+            // Core Bases
+            'Slime': { color: '#34d399', size: 10, speed: 1.0, sight: 60, diet: ['Algae', 'Toxin'], turnsInto: {} },
+            'Beast': { color: '#b45309', size: 12, speed: 3.5, sight: 150, diet: ['Meat', 'Carnivore', 'Herbivore'], turnsInto: {} },
+            'Dragon': { color: '#dc2626', size: 18, speed: 4.0, sight: 250, diet: ['Meat', 'Beast', 'Energy'], turnsInto: {} },
+            'Leviathan': { color: '#0369a1', size: 25, speed: 2.0, sight: 300, diet: ['Meat', 'Dragon', 'Slime'], turnsInto: {} },
+            'Swarm': { color: '#fcd34d', size: 3, speed: 5.0, sight: 200, diet: ['Energy', 'Cell'], turnsInto: {} },
+            'Titan': { color: '#64748b', size: 30, speed: 0.8, sight: 400, diet: ['Meat', 'Leviathan', 'Dragon', 'Magma'], turnsInto: {} }
         };
 
-        // --- 2. EVOLUTION RECIPES ---
-        // Format: [Base Species] + [Eats this] = [Becomes this]
         function addRecipe(base, food, result) {
-            if(SPECIES[base]) SPECIES[base].turnsInto[food] = result;
+            if(SPECIES[base] && SPECIES[result]) SPECIES[base].turnsInto[food] = result;
         }
 
+        // Setup early game paths
         addRecipe('Cell', 'Algae', 'Herbivore');
         addRecipe('Cell', 'Meat', 'Carnivore');
-        addRecipe('Cell', 'Energy', 'Electric Swarm');
-        addRecipe('Cell', 'Toxin', 'Toxic Blob');
-        
+        addRecipe('Cell', 'Toxin', 'Slime');
         addRecipe('Herbivore', 'Meat', 'Carnivore');
-        addRecipe('Carnivore', 'Toxin', 'Toxic Blob');
-        addRecipe('Carnivore', 'Energy', 'Apex Leviathan');
-        addRecipe('Toxic Blob', 'Algae', 'Cell'); // Cure them!
+        addRecipe('Carnivore', 'Meat', 'Beast');
+        addRecipe('Beast', 'Magma', 'Dragon');
+        addRecipe('Beast', 'Ice', 'Leviathan');
+        addRecipe('Cell', 'Energy', 'Swarm');
+        addRecipe('Dragon', 'Shadow', 'Titan');
 
-        // --- 3. GAME STATE ---
-        let creatures = [];
-        let foods = [];
-        let particles = [];
+        // PROCEDURAL MULTIPLIER (Builds hundreds of variants instantly)
+        const elements = [
+            { name: 'Fire', foodTrigger: 'Magma', color: '#ff4500' },
+            { name: 'Frost', foodTrigger: 'Ice', color: '#00ffff' },
+            { name: 'Toxic', foodTrigger: 'Toxin', color: '#8a2be2' },
+            { name: 'Volts', foodTrigger: 'Energy', color: '#ffd700' },
+            { name: 'Void', foodTrigger: 'Shadow', color: '#4b0082' },
+            { name: 'Gem', foodTrigger: 'Crystal', color: '#ff69b4' }
+        ];
+        const baseTypes = ['Slime', 'Beast', 'Dragon', 'Leviathan', 'Swarm', 'Titan'];
+
+        baseTypes.forEach(base => {
+            elements.forEach(el => {
+                const newName = `${el.name} ${base}`;
+                const baseStats = SPECIES[base];
+                
+                // 1. Create Species Stats
+                SPECIES[newName] = {
+                    color: el.color,
+                    size: baseStats.size * 1.1,
+                    speed: baseStats.speed * (el.name === 'Volts' ? 1.5 : 1.0),
+                    sight: baseStats.sight + 20,
+                    diet: [...baseStats.diet, el.foodTrigger],
+                    turnsInto: {}
+                };
+                
+                // 2. Wire the Recipe
+                addRecipe(base, el.foodTrigger, newName);
+                
+                // 3. Add Weakness (Cross-contamination resets them)
+                if (el.name === 'Fire') addRecipe(newName, 'Ice', 'Cell');
+                if (el.name === 'Frost') addRecipe(newName, 'Magma', 'Cell');
+            });
+        });
+
+        console.log(`Procedural Generation Complete: Loaded ${Object.keys(SPECIES).length} distinct species!`);
+
+        // --- 2. GAME STATE & UI ---
+        let creatures = []; let foods = []; let particles = [];
         let selectedFood = 'Algae';
 
-        // Initialize UI
         const foodPalette = document.getElementById('food-palette');
         for (const [key, val] of Object.entries(FOOD_TYPES)) {
             const btn = document.createElement('button');
@@ -124,39 +164,32 @@
             foodPalette.appendChild(btn);
         }
 
-        // --- 4. CLASSES ---
+        // --- 3. CLASSES ---
         class Creature {
             constructor(x, y, speciesName) {
                 this.x = x; this.y = y;
-                this.vx = (Math.random() - 0.5) * 2;
-                this.vy = (Math.random() - 0.5) * 2;
+                this.vx = (Math.random() - 0.5) * 2; this.vy = (Math.random() - 0.5) * 2;
                 this.setSpecies(speciesName);
             }
 
             setSpecies(speciesName) {
                 this.species = speciesName;
                 const stats = SPECIES[speciesName];
-                this.color = stats.color;
-                this.size = stats.size;
-                this.maxSpeed = stats.speed;
-                this.sight = stats.sight;
-                this.diet = stats.diet;
-                this.turnsInto = stats.turnsInto;
+                this.color = stats.color; this.size = stats.size;
+                this.maxSpeed = stats.speed; this.sight = stats.sight;
+                this.diet = stats.diet; this.turnsInto = stats.turnsInto;
             }
 
             evolve(newSpecies) {
-                createParticles(this.x, this.y, this.color); // Explosion effect
+                createParticles(this.x, this.y, this.color);
                 this.setSpecies(newSpecies);
-                createParticles(this.x, this.y, this.color); // New color effect
+                createParticles(this.x, this.y, this.color);
             }
 
             update() {
-                // 1. Swarm / Hunt Logic
                 let targetX = null; let targetY = null; let closestDist = this.sight;
-                let targetIsCreature = false;
-                let targetObj = null;
+                let targetIsCreature = false; let targetObj = null;
 
-                // Look for physical food drops
                 foods.forEach(f => {
                     if (this.diet.includes(f.type)) {
                         const d = Math.hypot(f.x - this.x, f.y - this.y);
@@ -164,75 +197,43 @@
                     }
                 });
 
-                // Look for other creatures to eat (if diet allows)
                 if (!targetObj) {
                     creatures.forEach(c => {
                         if (c !== this && this.diet.includes(c.species)) {
                             const d = Math.hypot(c.x - this.x, c.y - this.y);
-                            if (d < closestDist) { 
-                                closestDist = d; targetX = c.x; targetY = c.y; 
-                                targetIsCreature = true; targetObj = c; 
-                            }
+                            if (d < closestDist) { closestDist = d; targetX = c.x; targetY = c.y; targetIsCreature = true; targetObj = c; }
                         }
                     });
                 }
 
-                // Move towards target, otherwise wander randomly
                 if (targetX !== null) {
                     const angle = Math.atan2(targetY - this.y, targetX - this.x);
-                    this.vx += Math.cos(angle) * 0.1;
-                    this.vy += Math.sin(angle) * 0.1;
+                    this.vx += Math.cos(angle) * 0.15; this.vy += Math.sin(angle) * 0.15;
 
-                    // Eat logic!
                     if (closestDist < this.size + 4) {
-                        let eatenItemName = "";
-                        
-                        if (targetIsCreature) {
-                            eatenItemName = targetObj.species;
-                            targetObj.dead = true; // Kill the prey
-                            createParticles(targetObj.x, targetObj.y, '#ef4444');
-                        } else {
-                            eatenItemName = targetObj.type;
-                            targetObj.eaten = true; // Consume the food drop
-                        }
+                        let eatenName = targetIsCreature ? targetObj.species : targetObj.type;
+                        if (targetIsCreature) { targetObj.dead = true; createParticles(targetObj.x, targetObj.y, '#ef4444'); } 
+                        else { targetObj.eaten = true; }
 
-                        // Check Evolution Recipes
-                        if (this.turnsInto[eatenItemName]) {
-                            this.evolve(this.turnsInto[eatenItemName]);
-                        }
+                        if (this.turnsInto[eatenName]) this.evolve(this.turnsInto[eatenName]);
                     }
                 } else {
-                    // Wander
-                    this.vx += (Math.random() - 0.5) * 0.5;
-                    this.vy += (Math.random() - 0.5) * 0.5;
+                    this.vx += (Math.random() - 0.5) * 0.5; this.vy += (Math.random() - 0.5) * 0.5;
                 }
 
-                // Apply velocity and limits
                 const speed = Math.hypot(this.vx, this.vy);
-                if (speed > this.maxSpeed) {
-                    this.vx = (this.vx / speed) * this.maxSpeed;
-                    this.vy = (this.vy / speed) * this.maxSpeed;
-                }
+                if (speed > this.maxSpeed) { this.vx = (this.vx / speed) * this.maxSpeed; this.vy = (this.vy / speed) * this.maxSpeed; }
 
                 this.x += this.vx; this.y += this.vy;
 
-                // Screen Wrap
-                if (this.x < 320) this.x = width;
-                if (this.x > width) this.x = 320;
-                if (this.y < 0) this.y = height;
-                if (this.y > height) this.y = 0;
+                if (this.x < 340) this.x = width; if (this.x > width) this.x = 340;
+                if (this.y < 0) this.y = height; if (this.y > height) this.y = 0;
             }
 
             draw() {
-                // Draw sight radius (faint)
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.sight, 0, Math.PI * 2);
-                ctx.strokeStyle = this.color + '22'; ctx.lineWidth = 1; ctx.stroke();
-
-                // Draw Body
                 ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.shadowBlur = 10; ctx.shadowColor = this.color;
-                ctx.fill(); ctx.shadowBlur = 0; // reset
+                ctx.fillStyle = this.color; ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+                ctx.fill(); ctx.shadowBlur = 0;
             }
         }
 
@@ -240,8 +241,7 @@
             constructor(x, y, type) {
                 this.x = x; this.y = y; this.type = type;
                 this.color = FOOD_TYPES[type].color;
-                this.eaten = false;
-                this.life = 1000; // decays over time
+                this.eaten = false; this.life = 1500;
             }
             update() { this.life--; }
             draw() {
@@ -253,7 +253,7 @@
         class Particle {
             constructor(x, y, color) {
                 this.x = x; this.y = y; this.color = color;
-                this.vx = (Math.random() - 0.5) * 4; this.vy = (Math.random() - 0.5) * 4;
+                this.vx = (Math.random() - 0.5) * 6; this.vy = (Math.random() - 0.5) * 6;
                 this.life = 30; this.maxLife = 30;
             }
             update() { this.x += this.vx; this.y += this.vy; this.life--; }
@@ -265,23 +265,18 @@
         }
 
         function createParticles(x, y, color) {
-            for(let i=0; i<8; i++) particles.push(new Particle(x, y, color));
+            for(let i=0; i<10; i++) particles.push(new Particle(x, y, color));
         }
 
-        // --- 5. CONTROLS & LOOP ---
+        // --- 4. CONTROLS & RENDER LOOP ---
         canvas.addEventListener('mousedown', (e) => {
-            if (e.clientX > 320) {
-                // Drop a cluster of food
-                for(let i=0; i<3; i++) {
-                    foods.push(new FoodDrop(e.clientX + (Math.random()*20-10), e.clientY + (Math.random()*20-10), selectedFood));
-                }
+            if (e.clientX > 340) {
+                for(let i=0; i<3; i++) foods.push(new FoodDrop(e.clientX + (Math.random()*20-10), e.clientY + (Math.random()*20-10), selectedFood));
             }
         });
 
         window.spawnCells = function(amount) {
-            for(let i=0; i<amount; i++) {
-                creatures.push(new Creature(320 + Math.random()*(width-320), Math.random()*height, 'Cell'));
-            }
+            for(let i=0; i<amount; i++) creatures.push(new Creature(340 + Math.random()*(width-340), Math.random()*height, 'Cell'));
         }
 
         window.clearWorld = function() { creatures = []; foods = []; }
@@ -291,40 +286,33 @@
             creatures.forEach(c => { counts[c.species] = (counts[c.species] || 0) + 1; });
             
             let html = '';
-            for (const [species, count] of Object.entries(counts)) {
+            for (const [species, count] of Object.entries(counts).sort((a,b) => b[1] - a[1])) {
                 html += `<div class="stat-row">
                     <span style="color: ${SPECIES[species].color}; font-weight:bold;">${species}</span>
                     <span>${count}</span>
                 </div>`;
             }
-            if (creatures.length === 0) html = '<div style="color:#64748b; text-align:center; margin-top:20px;">Ecosystem is empty.</div>';
-            document.getElementById('stats-panel').innerHTML = html;
+            document.getElementById('stats-panel').innerHTML = html || '<div style="color:#64748b; text-align:center; margin-top:20px;">Ecosystem is empty.</div>';
+            document.getElementById('total-count').innerText = creatures.length;
         }
 
         function animate() {
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.3)'; // Trail effect
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.3)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Update & Draw Foods
             foods = foods.filter(f => !f.eaten && f.life > 0);
             foods.forEach(f => { f.update(); f.draw(); });
 
-            // Update & Draw Creatures
             creatures = creatures.filter(c => !c.dead);
             creatures.forEach(c => { c.update(); c.draw(); });
 
-            // Particles
             particles = particles.filter(p => p.life > 0);
             particles.forEach(p => { p.update(); p.draw(); });
 
-            // UI Stats updates every ~60 frames
             if(Math.random() < 0.05) updateStats();
-
             requestAnimationFrame(animate);
         }
 
-        // Start
-        spawnCells(10);
+        spawnCells(15);
         animate();
 
         window.addEventListener('resize', () => {
