@@ -3,111 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>sim</title>
+    <title>Physics Bridge Builder - Pro Edition</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: 'Segoe UI', sans-serif; user-select: none; }
         canvas { display: block; }
         
-        /* UI Panel */
         #ui-panel {
-            position: absolute; top: 0; left: 0; width: 320px; height: 100%;
+            position: absolute; top: 0; left: 0; width: 340px; height: 100%;
             background: rgba(15, 23, 42, 0.95); color: white; padding: 20px;
             box-sizing: border-box; border-right: 3px solid #334155;
             display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
-            box-shadow: 5px 0 15px rgba(0,0,0,0.3);
         }
         
-        h1 { margin: 0; font-size: 1.5rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; }
+        h1 { margin: 0; font-size: 1.5rem; color: #38bdf8; text-transform: uppercase; }
         h2 { margin: 0; font-size: 1rem; color: #94a3b8; border-bottom: 1px solid #334155; padding-bottom: 5px; }
         
         .control-group { display: flex; flex-direction: column; gap: 5px; }
-        label { font-size: 0.85rem; display: flex; justify-content: space-between; color: #cbd5e1; }
+        label { font-size: 0.85rem; display: flex; justify-content: space-between; color: #cbd5e1; align-items: center; }
         input[type="range"] { width: 100%; cursor: pointer; accent-color: #38bdf8; }
+        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #38bdf8; }
         
-        .material-btn {
+        .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .tool-btn {
             background: #1e293b; border: 2px solid #334155; color: white;
             padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;
-            display: flex; justify-content: space-between; align-items: center; transition: 0.2s;
+            display: flex; flex-direction: column; align-items: center; gap: 5px; transition: 0.2s;
         }
-        .material-btn:hover { background: #334155; }
-        .material-btn.active { border-color: #38bdf8; background: rgba(56, 189, 248, 0.2); }
+        .tool-btn:hover { background: #334155; }
+        .tool-btn.active { border-color: #38bdf8; background: rgba(56, 189, 248, 0.2); }
+        .tool-btn.eraser.active { border-color: #ef4444; background: rgba(239, 68, 68, 0.2); }
         
         .action-btn {
             background: #4ade80; color: #064e3b; border: none; padding: 15px;
             font-size: 1.1rem; font-weight: bold; border-radius: 6px; cursor: pointer;
             text-transform: uppercase; transition: 0.2s; margin-top: 10px;
         }
-        .action-btn:hover { background: #22c55e; transform: translateY(-2px); }
+        .action-btn:hover { background: #22c55e; }
         .action-btn.stop { background: #ef4444; color: white; }
         .action-btn.stop:hover { background: #dc2626; }
         .action-btn.clear { background: #64748b; color: white; padding: 10px; font-size: 0.9rem;}
         
         #status { font-size: 1.2rem; font-weight: bold; color: #fbbf24; text-align: center; padding: 10px; border: 2px dashed #fbbf24; border-radius: 6px; }
         
-        /* Custom Canvas for Drawing Connections */
-        #draw-canvas { position: absolute; top: 0; left: 320px; pointer-events: none; z-index: 10; }
-        #matter-container { position: absolute; top: 0; left: 320px; width: calc(100% - 320px); height: 100%; cursor: crosshair; }
+        #draw-canvas { position: absolute; top: 0; left: 340px; pointer-events: none; z-index: 10; }
+        #matter-container { position: absolute; top: 0; left: 340px; width: calc(100% - 340px); height: 100%; cursor: crosshair; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
 <body>
 
     <div id="ui-panel">
-        <h1>Bridge Builder</h1>
+        <h1>Bridge Builder Pro</h1>
         <div id="status">MODE: BUILDING</div>
         
-        <h2>Materials</h2>
-        <div class="control-group">
-            <button class="material-btn active" onclick="setMaterial('wood', this)">
-                <span>🪵 Wood</span> <span style="font-size:0.7rem; color:#94a3b8;">Medium</span>
+        <h2>Tools & Materials</h2>
+        <div class="tools-grid">
+            <button class="tool-btn active" onclick="setTool('wood', this)">
+                <span>🪵 Wood</span> <span style="font-size:0.7rem; color:#94a3b8;">Standard</span>
             </button>
-            <button class="material-btn" onclick="setMaterial('steel', this)">
-                <span>⚙️ Steel</span> <span style="font-size:0.7rem; color:#94a3b8;">Strong</span>
+            <button class="tool-btn" onclick="setTool('steel', this)">
+                <span>⚙️ Steel</span> <span style="font-size:0.7rem; color:#94a3b8;">Rigid Core</span>
             </button>
-            <button class="material-btn" onclick="setMaterial('cable', this)">
-                <span>🧵 Cable</span> <span style="font-size:0.7rem; color:#94a3b8;">Flexible</span>
+            <button class="tool-btn" onclick="setTool('road', this)">
+                <span>🛣️ Road</span> <span style="font-size:0.7rem; color:#94a3b8;">Drivable Surface</span>
+            </button>
+            <button class="tool-btn" onclick="setTool('cable', this)">
+                <span>🧵 Cable</span> <span style="font-size:0.7rem; color:#94a3b8;">Tension Only</span>
+            </button>
+            <button class="tool-btn eraser" style="grid-column: span 2;" onclick="setTool('eraser', this)">
+                <span>🧹 Eraser</span> <span style="font-size:0.7rem; color:#94a3b8;">Click nodes to delete</span>
             </button>
         </div>
 
-        <h2>Physics Settings</h2>
+        <h2>Environment Settings</h2>
         <div class="control-group">
-            <label>Gravity <span id="grav-val">1.0</span></label>
-            <input type="range" id="gravity" min="0.1" max="3" step="0.1" value="1.0" oninput="updateSettings()">
+            <label>Snap to Grid <input type="checkbox" id="snap-grid" checked></label>
             
-            <label>Car Weight <span id="car-val">500</span></label>
-            <input type="range" id="car-weight" min="100" max="2000" step="100" value="500" oninput="updateSettings()">
+            <label style="margin-top: 10px;">Gravity <span id="grav-val">1.0</span></label>
+            <input type="range" id="gravity" min="0.1" max="2.5" step="0.1" value="1.0" oninput="updateSettings()">
             
-            <label>Car Speed <span id="speed-val">3</span></label>
-            <input type="range" id="car-speed" min="1" max="8" step="0.5" value="3" oninput="updateSettings()">
+            <label>Car Weight <span id="car-val">600</span></label>
+            <input type="range" id="car-weight" min="200" max="2000" step="100" value="600" oninput="updateSettings()">
             
-            <label>Joint Mass (Bridge Weight) <span id="joint-val">10</span></label>
-            <input type="range" id="joint-mass" min="1" max="50" step="1" value="10" oninput="updateSettings()">
+            <label>Bridge Mass <span id="mass-val">15</span></label>
+            <input type="range" id="bridge-mass" min="5" max="50" step="1" value="15" oninput="updateSettings()">
         </div>
 
         <button id="sim-btn" class="action-btn" onclick="toggleSimulation()">▶ Test Bridge</button>
-        <button class="action-btn clear" onclick="clearBridge()">🗑️ Clear Bridge</button>
-        
-        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: auto;">
-            <strong>Controls:</strong><br>
-            - Click & drag from an anchor/node to build.<br>
-            - Triangles make the strongest structures!
-        </div>
+        <button class="action-btn clear" onclick="clearBridge()">🗑️ Clear All</button>
     </div>
 
     <div id="matter-container"></div>
     <canvas id="draw-canvas"></canvas>
 
     <script>
-        // --- 1. SETUP MATTER.JS ---
-        const Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner;
-        const Bodies = Matter.Bodies, Composite = Matter.Composite, Constraint = Matter.Constraint;
-        const Events = Matter.Events, Vector = Matter.Vector;
+        // --- 1. SETUP ---
+        const { Engine, Render, Runner, Bodies, Composite, Constraint, Events, Body } = Matter;
 
         const container = document.getElementById('matter-container');
         const drawCanvas = document.getElementById('draw-canvas');
         const ctx = drawCanvas.getContext('2d');
-        
-        let width = window.innerWidth - 320; let height = window.innerHeight;
+        let width = window.innerWidth - 340; let height = window.innerHeight;
         
         const engine = Engine.create();
         const render = Render.create({
@@ -116,213 +112,221 @@
         });
 
         Render.run(render);
-        const runner = Runner.create(); // Don't run yet, we are in build mode
+        const runner = Runner.create();
 
-        // --- 2. GAME STATE & SETTINGS ---
-        let mode = 'build'; // 'build' or 'test'
-        let currentMaterial = 'wood';
-        let blueprint = { nodes: [], links: [] }; // Stores our drawn bridge
+        // --- 2. STATE & SETTINGS ---
+        let mode = 'build'; 
+        let currentTool = 'wood';
+        let blueprint = { nodes: [], links: [] }; 
         
-        let settings = { gravity: 1.0, carWeight: 500, carSpeed: 3, jointMass: 10 };
+        let settings = { gravity: 1.0, carWeight: 600, bridgeMass: 15, snapToGrid: true };
         const materials = {
-            wood: { stiffness: 0.9, color: '#8b5a2b', width: 8, strength: 1.5 },
-            steel: { stiffness: 1.0, color: '#94a3b8', width: 6, strength: 3.0 },
-            cable: { stiffness: 0.1, color: '#1e293b', width: 3, strength: 0.8 }
+            wood: { stiffness: 0.95, color: '#8b5a2b', width: 8, massMult: 1.0, isSolid: true },
+            steel: { stiffness: 1.0, color: '#94a3b8', width: 10, massMult: 2.0, isSolid: true },
+            road: { stiffness: 0.9, color: '#333333', width: 14, massMult: 1.5, isSolid: true },
+            cable: { stiffness: 0.1, color: '#1e293b', width: 4, massMult: 0.2, isSolid: false }
         };
 
         let draggingNode = null; let mouseX = 0; let mouseY = 0;
-        let carComposite = null;
+        let carComposite = null; let simBodies = []; let simConstraints = [];
 
-        // --- 3. CREATE TERRAIN & ANCHORS ---
-        const terrainOpts = { isStatic: true, render: { fillStyle: '#2d8a3e' }, friction: 0.8 };
+        // --- 3. TERRAIN ---
+        // Rounded corners (chamfer) help the car roll smoothly onto the bridge
+        const terrainOpts = { isStatic: true, render: { fillStyle: '#2d8a3e' }, friction: 0.8, chamfer: { radius: 20 } };
         const leftCliff = Bodies.rectangle(150, height - 150, 400, 400, terrainOpts);
         const rightCliff = Bodies.rectangle(width - 150, height - 150, 400, 400, terrainOpts);
-        const riverOpts = { isStatic: true, isSensor: true, render: { fillStyle: '#3b82f6', opacity: 0.7 } };
-        const river = Bodies.rectangle(width/2, height - 50, width, 100, riverOpts);
+        const river = Bodies.rectangle(width/2, height - 50, width, 100, { isStatic: true, isSensor: true, render: { fillStyle: '#3b82f6' } });
         
         Composite.add(engine.world, [leftCliff, rightCliff, river]);
 
-        // Create fixed anchor points to build from
-        function addAnchor(x, y) {
-            blueprint.nodes.push({ x, y, isFixed: true, id: Math.random().toString(36).substr(2, 9) });
-        }
-        addAnchor(330, height - 360); addAnchor(330, height - 250); // Left anchors
-        addAnchor(width - 330, height - 360); addAnchor(width - 330, height - 250); // Right anchors
+        function addAnchor(x, y) { blueprint.nodes.push({ x, y, isFixed: true, id: Math.random().toString(36).substr(2, 9) }); }
+        addAnchor(340, height - 350); addAnchor(340, height - 250); // Left
+        addAnchor(width - 340, height - 350); addAnchor(width - 340, height - 250); // Right
 
-        // --- 4. BUILD MODE LOGIC (UI & Drawing) ---
-        function resize() {
-            width = window.innerWidth - 320; height = window.innerHeight;
-            render.canvas.width = width; render.canvas.height = height;
-            drawCanvas.width = width; drawCanvas.height = height;
-        }
-        window.addEventListener('resize', resize); resize();
+        // --- 4. BUILD LOGIC ---
+        function getGridPos(val) { return settings.snapToGrid ? Math.round(val / 20) * 20 : val; }
 
         container.addEventListener('mousedown', (e) => {
             if (mode !== 'build') return;
-            const rect = container.getBoundingClientRect();
-            const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+            const mx = e.clientX - 340; const my = e.clientY;
             
-            // Find closest node
-            let closest = null; let minDist = 30; // Snap radius
+            let closest = null; let minDist = 25;
             blueprint.nodes.forEach(n => {
                 const dist = Math.hypot(n.x - mx, n.y - my);
                 if (dist < minDist) { minDist = dist; closest = n; }
             });
 
-            if (closest) draggingNode = closest;
+            if (currentTool === 'eraser' && closest) {
+                if (!closest.isFixed) blueprint.nodes = blueprint.nodes.filter(n => n.id !== closest.id);
+                blueprint.links = blueprint.links.filter(l => l.n1.id !== closest.id && l.n2.id !== closest.id);
+                return;
+            }
+
+            if (closest && currentTool !== 'eraser') draggingNode = closest;
         });
 
         container.addEventListener('mousemove', (e) => {
             if (mode !== 'build') return;
-            const rect = container.getBoundingClientRect();
-            mouseX = e.clientX - rect.left; mouseY = e.clientY - rect.top;
+            mouseX = getGridPos(e.clientX - 340); mouseY = getGridPos(e.clientY);
         });
 
         container.addEventListener('mouseup', (e) => {
-            if (mode !== 'build' || !draggingNode) return;
+            if (mode !== 'build' || !draggingNode || currentTool === 'eraser') { draggingNode = null; return; }
             
-            // Find if we released on another node
-            let targetNode = null; let minDist = 30;
+            let targetNode = null; let minDist = 25;
             blueprint.nodes.forEach(n => {
                 if (n === draggingNode) return;
                 const dist = Math.hypot(n.x - mouseX, n.y - mouseY);
                 if (dist < minDist) { minDist = dist; targetNode = n; }
             });
 
-            // If no target node, create a new one!
             if (!targetNode) {
                 targetNode = { x: mouseX, y: mouseY, isFixed: false, id: Math.random().toString(36).substr(2, 9) };
                 blueprint.nodes.push(targetNode);
             }
 
-            // Prevent duplicate links
-            const linkExists = blueprint.links.some(l => 
-                (l.n1.id === draggingNode.id && l.n2.id === targetNode.id) || 
-                (l.n2.id === draggingNode.id && l.n1.id === targetNode.id)
-            );
-
-            if (!linkExists) {
-                blueprint.links.push({ n1: draggingNode, n2: targetNode, mat: currentMaterial });
-            }
+            const exists = blueprint.links.some(l => (l.n1.id === draggingNode.id && l.n2.id === targetNode.id) || (l.n2.id === draggingNode.id && l.n1.id === targetNode.id));
+            if (!exists) blueprint.links.push({ n1: draggingNode, n2: targetNode, mat: currentTool });
             draggingNode = null;
         });
 
-        // Custom Render Loop for Build Mode
-        function drawBuildOverlay() {
+        // Drawing Overlay
+        function drawBuild() {
             ctx.clearRect(0, 0, width, height);
-            if (mode !== 'build') return requestAnimationFrame(drawBuildOverlay);
+            if (mode !== 'build') return requestAnimationFrame(drawBuild);
 
-            // Draw Links
+            // Grid dots
+            if (settings.snapToGrid) {
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                for(let x=0; x<width; x+=20) for(let y=0; y<height; y+=20) { ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI*2); ctx.fill(); }
+            }
+
             blueprint.links.forEach(link => {
                 const matInfo = materials[link.mat];
                 ctx.beginPath(); ctx.moveTo(link.n1.x, link.n1.y); ctx.lineTo(link.n2.x, link.n2.y);
                 ctx.strokeStyle = matInfo.color; ctx.lineWidth = matInfo.width; ctx.stroke();
             });
 
-            // Draw Dragging Line
             if (draggingNode) {
                 ctx.beginPath(); ctx.moveTo(draggingNode.x, draggingNode.y); ctx.lineTo(mouseX, mouseY);
-                ctx.strokeStyle = materials[currentMaterial].color;
-                ctx.lineWidth = materials[currentMaterial].width;
+                ctx.strokeStyle = materials[currentTool].color; ctx.lineWidth = materials[currentTool].width;
                 ctx.setLineDash([10, 10]); ctx.stroke(); ctx.setLineDash([]);
             }
 
-            // Draw Nodes
             blueprint.nodes.forEach(n => {
-                ctx.beginPath(); ctx.arc(n.x, n.y, 8, 0, Math.PI * 2);
+                ctx.beginPath(); ctx.arc(n.x, n.y, n.isFixed ? 10 : 8, 0, Math.PI * 2);
                 ctx.fillStyle = n.isFixed ? '#ef4444' : '#38bdf8';
                 ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'white'; ctx.stroke();
             });
 
-            requestAnimationFrame(drawBuildOverlay);
+            requestAnimationFrame(drawBuild);
         }
-        drawBuildOverlay();
+        drawBuild();
 
-        // --- 5. SIMULATION MODE (Matter.js Generation) ---
-        let simBodies = []; let simConstraints = [];
-
+        // --- 5. SIMULATION LOGIC ---
         function buildPhysicsWorld() {
-            // Clear old sim
             Composite.remove(engine.world, [...simBodies, ...simConstraints]);
             if (carComposite) Composite.remove(engine.world, carComposite);
             simBodies = []; simConstraints = [];
             
             engine.gravity.y = settings.gravity;
+            const bridgeGroup = Body.nextGroup(true); // Ensures bridge parts don't collide with EACH OTHER, only the car
 
-            // Dictionary to map blueprint node IDs to Matter.js bodies
             const bodyMap = {};
 
-            // 1. Generate Nodes (Joints)
+            // Generate Nodes
             blueprint.nodes.forEach(n => {
-                if (n.isFixed) {
-                    const body = Bodies.circle(n.x, n.y, 10, { isStatic: true, render: { fillStyle: '#ef4444' }});
-                    bodyMap[n.id] = body; simBodies.push(body);
-                } else {
-                    const body = Bodies.circle(n.x, n.y, 6, { 
-                        mass: settings.jointMass, friction: 0.8,
-                        render: { fillStyle: '#38bdf8' }
-                    });
-                    bodyMap[n.id] = body; simBodies.push(body);
-                }
+                const isFixed = n.isFixed;
+                // Make nodes small and non-colliding (sensors) so the car drives on the planks, not the nodes
+                const body = Bodies.circle(n.x, n.y, 4, { 
+                    isStatic: isFixed, isSensor: true,
+                    mass: isFixed ? 0 : settings.bridgeMass / 2, 
+                    collisionFilter: { group: bridgeGroup },
+                    render: { fillStyle: isFixed ? '#ef4444' : '#38bdf8' }
+                });
+                bodyMap[n.id] = body; simBodies.push(body);
             });
 
-            // 2. Generate Links (Constraints/Springs)
+            // Generate Solid Planks & Cables
             blueprint.links.forEach(l => {
                 const b1 = bodyMap[l.n1.id]; const b2 = bodyMap[l.n2.id];
                 const matInfo = materials[l.mat];
-                
-                const constraint = Constraint.create({
-                    bodyA: b1, bodyB: b2, stiffness: matInfo.stiffness, damping: 0.1,
-                    render: { strokeStyle: matInfo.color, lineWidth: matInfo.width }
-                });
-                simConstraints.push(constraint);
+                const dist = Math.hypot(l.n2.x - l.n1.x, l.n2.y - l.n1.y);
+                const midX = (l.n1.x + l.n2.x) / 2; const midY = (l.n1.y + l.n2.y) / 2;
+                const angle = Math.atan2(l.n2.y - l.n1.y, l.n2.x - l.n1.x);
+
+                if (matInfo.isSolid) {
+                    // Create a physical rectangle for the car to drive on
+                    const plank = Bodies.rectangle(midX, midY, dist, matInfo.width, {
+                        angle: angle, friction: 0.9,
+                        mass: (settings.bridgeMass * matInfo.massMult * dist) / 100,
+                        collisionFilter: { group: bridgeGroup },
+                        render: { fillStyle: matInfo.color }
+                    });
+                    simBodies.push(plank);
+
+                    // Pin plank to the two nodes
+                    simConstraints.push(Constraint.create({
+                        bodyA: b1, bodyB: plank, pointB: { x: -dist/2, y: 0 },
+                        stiffness: matInfo.stiffness, length: 0, render: { visible: false }
+                    }));
+                    simConstraints.push(Constraint.create({
+                        bodyA: b2, bodyB: plank, pointB: { x: dist/2, y: 0 },
+                        stiffness: matInfo.stiffness, length: 0, render: { visible: false }
+                    }));
+                } else {
+                    // Cable is just a visual tension line, no physical plank
+                    simConstraints.push(Constraint.create({
+                        bodyA: b1, bodyB: b2, stiffness: matInfo.stiffness, damping: 0.1,
+                        render: { strokeStyle: matInfo.color, lineWidth: matInfo.width }
+                    }));
+                }
             });
 
             Composite.add(engine.world, [...simBodies, ...simConstraints]);
 
-            // 3. Generate The Test Car
+            // Generate Car (Spawned slightly higher to drop onto the cliff)
             carComposite = Composite.create();
-            const chassis = Bodies.rectangle(100, height - 390, 80, 30, { 
-                mass: settings.carWeight, render: { fillStyle: '#ef4444' }, collisionFilter: { group: -1 }
+            const chassis = Bodies.rectangle(120, height - 380, 80, 25, { 
+                mass: settings.carWeight, render: { fillStyle: '#ef4444' }
             });
-            const wheelOpts = { friction: 0.9, restitution: 0.1, render: { fillStyle: '#111' }, collisionFilter: { group: -1 }};
-            const wheelA = Bodies.circle(70, height - 370, 15, wheelOpts);
-            const wheelB = Bodies.circle(130, height - 370, 15, wheelOpts);
+            // Wheels have high friction so they grip the road/wood
+            const wheelOpts = { friction: 1.0, restitution: 0.1, render: { fillStyle: '#111' }};
+            const wheelA = Bodies.circle(90, height - 360, 15, wheelOpts);
+            const wheelB = Bodies.circle(150, height - 360, 15, wheelOpts);
             
-            const axelA = Constraint.create({ bodyA: chassis, pointA: {x: -30, y: 15}, bodyB: wheelA, stiffness: 0.2, length: 5, render:{visible:false} });
-            const axelB = Constraint.create({ bodyA: chassis, pointA: {x: 30, y: 15}, bodyB: wheelB, stiffness: 0.2, length: 5, render:{visible:false} });
+            const axelA = Constraint.create({ bodyA: chassis, pointA: {x: -30, y: 10}, bodyB: wheelA, stiffness: 0.1, length: 5, render:{visible:false} });
+            const axelB = Constraint.create({ bodyA: chassis, pointA: {x: 30, y: 10}, bodyB: wheelB, stiffness: 0.1, length: 5, render:{visible:false} });
             
             Composite.add(carComposite, [chassis, wheelA, wheelB, axelA, axelB]);
             Composite.add(engine.world, carComposite);
         }
 
-        // Apply car driving force during simulation
+        // Apply constant force to chassis to drive it right
         Events.on(engine, 'beforeUpdate', () => {
             if (mode === 'test' && carComposite) {
                 const chassis = carComposite.bodies[0];
                 if (chassis.position.x < width - 150) {
-                    // Push car right
-                    Matter.Body.setVelocity(chassis, { x: settings.carSpeed, y: chassis.velocity.y });
+                    Body.setVelocity(chassis, { x: 3.5, y: chassis.velocity.y });
                 }
             }
         });
 
-        // --- 6. UI CONTROLS ---
+        // --- 6. UI ---
         function updateSettings() {
+            settings.snapToGrid = document.getElementById('snap-grid').checked;
             settings.gravity = parseFloat(document.getElementById('gravity').value);
             settings.carWeight = parseInt(document.getElementById('car-weight').value);
-            settings.carSpeed = parseFloat(document.getElementById('car-speed').value);
-            settings.jointMass = parseInt(document.getElementById('joint-mass').value);
+            settings.bridgeMass = parseInt(document.getElementById('bridge-mass').value);
             
             document.getElementById('grav-val').innerText = settings.gravity;
             document.getElementById('car-val').innerText = settings.carWeight;
-            document.getElementById('speed-val').innerText = settings.carSpeed;
-            document.getElementById('joint-val').innerText = settings.jointMass;
+            document.getElementById('mass-val').innerText = settings.bridgeMass;
         }
 
-        window.setMaterial = function(mat, btn) {
-            currentMaterial = mat;
-            document.querySelectorAll('.material-btn').forEach(b => b.classList.remove('active'));
+        window.setTool = function(tool, btn) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
         }
 
@@ -336,14 +340,13 @@
                 status.innerHTML = 'MODE: SIMULATING'; status.style.color = '#4ade80'; status.style.borderColor = '#4ade80';
                 
                 buildPhysicsWorld();
-                Runner.run(runner, engine); // Start physics
+                Runner.run(runner, engine);
             } else {
                 mode = 'build';
                 btn.innerHTML = '▶ Test Bridge'; btn.classList.remove('stop');
                 status.innerHTML = 'MODE: BUILDING'; status.style.color = '#fbbf24'; status.style.borderColor = '#fbbf24';
                 
-                Runner.stop(runner); // Pause physics
-                // Clear the simulation bodies so the overlay can draw the blueprint again
+                Runner.stop(runner);
                 Composite.remove(engine.world, [...simBodies, ...simConstraints]);
                 if (carComposite) Composite.remove(engine.world, carComposite);
             }
@@ -351,10 +354,15 @@
 
         window.clearBridge = function() {
             if (mode === 'test') toggleSimulation();
-            blueprint.nodes = blueprint.nodes.filter(n => n.isFixed); // Keep anchors
+            blueprint.nodes = blueprint.nodes.filter(n => n.isFixed);
             blueprint.links = [];
         }
 
+        window.addEventListener('resize', () => {
+            width = window.innerWidth - 340; height = window.innerHeight;
+            render.canvas.width = width; render.canvas.height = height;
+            drawCanvas.width = width; drawCanvas.height = height;
+        });
     </script>
 </body>
 </html>
