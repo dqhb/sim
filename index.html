@@ -3,365 +3,333 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>sim</title>
+    <title>Evolution Ecosystem Prototype</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; user-select: none; }
         canvas { display: block; }
         
         #ui-panel {
-            position: absolute; top: 0; left: 0; width: 340px; height: 100%;
-            background: rgba(15, 23, 42, 0.95); color: white; padding: 20px;
-            box-sizing: border-box; border-right: 3px solid #334155;
-            display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
+            position: absolute; top: 0; left: 0; width: 320px; height: 100%;
+            background: rgba(30, 41, 59, 0.95); border-right: 2px solid #334155;
+            display: flex; flex-direction: column; padding: 20px; box-sizing: border-box;
+            box-shadow: 5px 0 20px rgba(0,0,0,0.5); z-index: 10;
         }
         
-        h1 { margin: 0; font-size: 1.5rem; color: #38bdf8; text-transform: uppercase; }
-        h2 { margin: 0; font-size: 1rem; color: #94a3b8; border-bottom: 1px solid #334155; padding-bottom: 5px; }
+        h1 { margin: 0 0 10px 0; font-size: 1.5rem; color: #38bdf8; text-transform: uppercase; }
+        p.subtitle { margin: 0 0 20px 0; font-size: 0.85rem; color: #94a3b8; }
         
-        .control-group { display: flex; flex-direction: column; gap: 5px; }
-        label { font-size: 0.85rem; display: flex; justify-content: space-between; color: #cbd5e1; align-items: center; }
-        input[type="range"] { width: 100%; cursor: pointer; accent-color: #38bdf8; }
-        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #38bdf8; }
+        h2 { margin: 10px 0; font-size: 1rem; color: #cbd5e1; border-bottom: 1px solid #475569; padding-bottom: 5px; }
         
-        .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .tool-btn {
+        .food-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+        .food-btn {
             background: #1e293b; border: 2px solid #334155; color: white;
             padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;
-            display: flex; flex-direction: column; align-items: center; gap: 5px; transition: 0.2s;
+            display: flex; flex-direction: column; align-items: center; transition: 0.2s;
         }
-        .tool-btn:hover { background: #334155; }
-        .tool-btn.active { border-color: #38bdf8; background: rgba(56, 189, 248, 0.2); }
-        .tool-btn.eraser.active { border-color: #ef4444; background: rgba(239, 68, 68, 0.2); }
+        .food-btn:hover { background: #334155; transform: translateY(-2px); }
+        .food-btn.active { border-color: #38bdf8; background: rgba(56, 189, 248, 0.2); }
         
-        .action-btn {
-            background: #4ade80; color: #064e3b; border: none; padding: 15px;
-            font-size: 1.1rem; font-weight: bold; border-radius: 6px; cursor: pointer;
-            text-transform: uppercase; transition: 0.2s; margin-top: 10px;
-        }
-        .action-btn:hover { background: #22c55e; }
-        .action-btn.stop { background: #ef4444; color: white; }
-        .action-btn.stop:hover { background: #dc2626; }
-        .action-btn.clear { background: #64748b; color: white; padding: 10px; font-size: 0.9rem;}
+        #stats-panel { flex-grow: 1; overflow-y: auto; font-size: 0.9rem; color: #cbd5e1; background: #0f172a; padding: 10px; border-radius: 6px; border: 1px solid #334155;}
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #334155; }
         
-        #status { font-size: 1.2rem; font-weight: bold; color: #fbbf24; text-align: center; padding: 10px; border: 2px dashed #fbbf24; border-radius: 6px; }
+        .control-btn { background: #10b981; color: white; border: none; padding: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
+        .control-btn:hover { background: #059669; }
+        .control-btn.danger { background: #ef4444; }
+        .control-btn.danger:hover { background: #dc2626; }
         
-        #draw-canvas { position: absolute; top: 0; left: 340px; pointer-events: none; z-index: 10; }
-        #matter-container { position: absolute; top: 0; left: 340px; width: calc(100% - 340px); height: 100%; cursor: crosshair; }
+        #instructions { position: absolute; bottom: 20px; left: 340px; color: rgba(255,255,255,0.6); pointer-events: none; font-size: 1.2rem; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
 <body>
 
     <div id="ui-panel">
-        <h1>Bridge Builder Pro</h1>
-        <div id="status">MODE: BUILDING</div>
+        <h1>Evo-Swarm</h1>
+        <p class="subtitle">Discover new species by feeding them!</p>
         
-        <h2>Tools & Materials</h2>
-        <div class="tools-grid">
-            <button class="tool-btn active" onclick="setTool('wood', this)">
-                <span>🪵 Wood</span> <span style="font-size:0.7rem; color:#94a3b8;">Standard</span>
-            </button>
-            <button class="tool-btn" onclick="setTool('steel', this)">
-                <span>⚙️ Steel</span> <span style="font-size:0.7rem; color:#94a3b8;">Rigid Core</span>
-            </button>
-            <button class="tool-btn" onclick="setTool('road', this)">
-                <span>🛣️ Road</span> <span style="font-size:0.7rem; color:#94a3b8;">Drivable Surface</span>
-            </button>
-            <button class="tool-btn" onclick="setTool('cable', this)">
-                <span>🧵 Cable</span> <span style="font-size:0.7rem; color:#94a3b8;">Tension Only</span>
-            </button>
-            <button class="tool-btn eraser" style="grid-column: span 2;" onclick="setTool('eraser', this)">
-                <span>🧹 Eraser</span> <span style="font-size:0.7rem; color:#94a3b8;">Click nodes to delete</span>
-            </button>
-        </div>
+        <h2>Drop Food (Click Canvas)</h2>
+        <div class="food-grid" id="food-palette">
+            </div>
 
-        <h2>Environment Settings</h2>
-        <div class="control-group">
-            <label>Snap to Grid <input type="checkbox" id="snap-grid" checked></label>
-            
-            <label style="margin-top: 10px;">Gravity <span id="grav-val">1.0</span></label>
-            <input type="range" id="gravity" min="0.1" max="2.5" step="0.1" value="1.0" oninput="updateSettings()">
-            
-            <label>Car Weight <span id="car-val">600</span></label>
-            <input type="range" id="car-weight" min="200" max="2000" step="100" value="600" oninput="updateSettings()">
-            
-            <label>Bridge Mass <span id="mass-val">15</span></label>
-            <input type="range" id="bridge-mass" min="5" max="50" step="1" value="15" oninput="updateSettings()">
-        </div>
+        <h2>Population Stats</h2>
+        <div id="stats-panel">
+            </div>
 
-        <button id="sim-btn" class="action-btn" onclick="toggleSimulation()">▶ Test Bridge</button>
-        <button class="action-btn clear" onclick="clearBridge()">🗑️ Clear All</button>
+        <button class="control-btn" onclick="spawnCells(5)">🦠 Spawn 5 Basic Cells</button>
+        <button class="control-btn danger" onclick="clearWorld()">🗑️ Extinction (Clear)</button>
     </div>
-
-    <div id="matter-container"></div>
-    <canvas id="draw-canvas"></canvas>
+    
+    <div id="instructions">Select a food type and click to drop it into the ecosystem.</div>
+    <canvas id="ecosystem-canvas"></canvas>
 
     <script>
-        // --- 1. SETUP ---
-        const { Engine, Render, Runner, Bodies, Composite, Constraint, Events, Body } = Matter;
-
-        const container = document.getElementById('matter-container');
-        const drawCanvas = document.getElementById('draw-canvas');
-        const ctx = drawCanvas.getContext('2d');
-        let width = window.innerWidth - 340; let height = window.innerHeight;
+        const canvas = document.getElementById('ecosystem-canvas');
+        const ctx = canvas.getContext('2d');
         
-        const engine = Engine.create();
-        const render = Render.create({
-            element: container, engine: engine,
-            options: { width, height, wireframes: false, background: '#87CEEB', hasBounds: true }
-        });
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        canvas.width = width; canvas.height = height;
 
-        Render.run(render);
-        const runner = Runner.create();
-
-        // --- 2. STATE & SETTINGS ---
-        let mode = 'build'; 
-        let currentTool = 'wood';
-        let blueprint = { nodes: [], links: [] }; 
+        // --- 1. THE DICTIONARY (Infinite Craft Engine) ---
+        // Here is where you can easily add up to 50+ foods and species!
         
-        let settings = { gravity: 1.0, carWeight: 600, bridgeMass: 15, snapToGrid: true };
-        const materials = {
-            wood: { stiffness: 0.95, color: '#8b5a2b', width: 8, massMult: 1.0, isSolid: true },
-            steel: { stiffness: 1.0, color: '#94a3b8', width: 10, massMult: 2.0, isSolid: true },
-            road: { stiffness: 0.9, color: '#333333', width: 14, massMult: 1.5, isSolid: true },
-            cable: { stiffness: 0.1, color: '#1e293b', width: 4, massMult: 0.2, isSolid: false }
+        const FOOD_TYPES = {
+            'Algae': { color: '#4ade80', emoji: '🌿' },
+            'Meat': { color: '#ef4444', emoji: '🥩' },
+            'Energy': { color: '#fbbf24', emoji: '⚡' },
+            'Toxin': { color: '#a855f7', emoji: '🧪' }
         };
 
-        let draggingNode = null; let mouseX = 0; let mouseY = 0;
-        let carComposite = null; let simBodies = []; let simConstraints = [];
+        const SPECIES = {
+            'Cell': { color: '#ffffff', size: 4, speed: 1.5, sight: 50, diet: ['Algae'], turnsInto: {} },
+            'Herbivore': { color: '#22c55e', size: 6, speed: 2.0, sight: 80, diet: ['Algae'], turnsInto: {} },
+            'Carnivore': { color: '#ef4444', size: 8, speed: 2.5, sight: 120, diet: ['Meat', 'Herbivore'], turnsInto: {} },
+            'Electric Swarm': { color: '#fbbf24', size: 5, speed: 4.0, sight: 150, diet: ['Energy'], turnsInto: {} },
+            'Toxic Blob': { color: '#a855f7', size: 10, speed: 1.0, sight: 60, diet: ['Toxin', 'Carnivore'], turnsInto: {} },
+            'Apex Leviathan': { color: '#f87171', size: 15, speed: 3.0, sight: 200, diet: ['Meat', 'Carnivore', 'Electric Swarm'], turnsInto: {} }
+        };
 
-        // --- 3. TERRAIN ---
-        // Rounded corners (chamfer) help the car roll smoothly onto the bridge
-        const terrainOpts = { isStatic: true, render: { fillStyle: '#2d8a3e' }, friction: 0.8, chamfer: { radius: 20 } };
-        const leftCliff = Bodies.rectangle(150, height - 150, 400, 400, terrainOpts);
-        const rightCliff = Bodies.rectangle(width - 150, height - 150, 400, 400, terrainOpts);
-        const river = Bodies.rectangle(width/2, height - 50, width, 100, { isStatic: true, isSensor: true, render: { fillStyle: '#3b82f6' } });
+        // --- 2. EVOLUTION RECIPES ---
+        // Format: [Base Species] + [Eats this] = [Becomes this]
+        function addRecipe(base, food, result) {
+            if(SPECIES[base]) SPECIES[base].turnsInto[food] = result;
+        }
+
+        addRecipe('Cell', 'Algae', 'Herbivore');
+        addRecipe('Cell', 'Meat', 'Carnivore');
+        addRecipe('Cell', 'Energy', 'Electric Swarm');
+        addRecipe('Cell', 'Toxin', 'Toxic Blob');
         
-        Composite.add(engine.world, [leftCliff, rightCliff, river]);
+        addRecipe('Herbivore', 'Meat', 'Carnivore');
+        addRecipe('Carnivore', 'Toxin', 'Toxic Blob');
+        addRecipe('Carnivore', 'Energy', 'Apex Leviathan');
+        addRecipe('Toxic Blob', 'Algae', 'Cell'); // Cure them!
 
-        function addAnchor(x, y) { blueprint.nodes.push({ x, y, isFixed: true, id: Math.random().toString(36).substr(2, 9) }); }
-        addAnchor(340, height - 350); addAnchor(340, height - 250); // Left
-        addAnchor(width - 340, height - 350); addAnchor(width - 340, height - 250); // Right
+        // --- 3. GAME STATE ---
+        let creatures = [];
+        let foods = [];
+        let particles = [];
+        let selectedFood = 'Algae';
 
-        // --- 4. BUILD LOGIC ---
-        function getGridPos(val) { return settings.snapToGrid ? Math.round(val / 20) * 20 : val; }
-
-        container.addEventListener('mousedown', (e) => {
-            if (mode !== 'build') return;
-            const mx = e.clientX - 340; const my = e.clientY;
-            
-            let closest = null; let minDist = 25;
-            blueprint.nodes.forEach(n => {
-                const dist = Math.hypot(n.x - mx, n.y - my);
-                if (dist < minDist) { minDist = dist; closest = n; }
-            });
-
-            if (currentTool === 'eraser' && closest) {
-                if (!closest.isFixed) blueprint.nodes = blueprint.nodes.filter(n => n.id !== closest.id);
-                blueprint.links = blueprint.links.filter(l => l.n1.id !== closest.id && l.n2.id !== closest.id);
-                return;
-            }
-
-            if (closest && currentTool !== 'eraser') draggingNode = closest;
-        });
-
-        container.addEventListener('mousemove', (e) => {
-            if (mode !== 'build') return;
-            mouseX = getGridPos(e.clientX - 340); mouseY = getGridPos(e.clientY);
-        });
-
-        container.addEventListener('mouseup', (e) => {
-            if (mode !== 'build' || !draggingNode || currentTool === 'eraser') { draggingNode = null; return; }
-            
-            let targetNode = null; let minDist = 25;
-            blueprint.nodes.forEach(n => {
-                if (n === draggingNode) return;
-                const dist = Math.hypot(n.x - mouseX, n.y - mouseY);
-                if (dist < minDist) { minDist = dist; targetNode = n; }
-            });
-
-            if (!targetNode) {
-                targetNode = { x: mouseX, y: mouseY, isFixed: false, id: Math.random().toString(36).substr(2, 9) };
-                blueprint.nodes.push(targetNode);
-            }
-
-            const exists = blueprint.links.some(l => (l.n1.id === draggingNode.id && l.n2.id === targetNode.id) || (l.n2.id === draggingNode.id && l.n1.id === targetNode.id));
-            if (!exists) blueprint.links.push({ n1: draggingNode, n2: targetNode, mat: currentTool });
-            draggingNode = null;
-        });
-
-        // Drawing Overlay
-        function drawBuild() {
-            ctx.clearRect(0, 0, width, height);
-            if (mode !== 'build') return requestAnimationFrame(drawBuild);
-
-            // Grid dots
-            if (settings.snapToGrid) {
-                ctx.fillStyle = 'rgba(255,255,255,0.2)';
-                for(let x=0; x<width; x+=20) for(let y=0; y<height; y+=20) { ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI*2); ctx.fill(); }
-            }
-
-            blueprint.links.forEach(link => {
-                const matInfo = materials[link.mat];
-                ctx.beginPath(); ctx.moveTo(link.n1.x, link.n1.y); ctx.lineTo(link.n2.x, link.n2.y);
-                ctx.strokeStyle = matInfo.color; ctx.lineWidth = matInfo.width; ctx.stroke();
-            });
-
-            if (draggingNode) {
-                ctx.beginPath(); ctx.moveTo(draggingNode.x, draggingNode.y); ctx.lineTo(mouseX, mouseY);
-                ctx.strokeStyle = materials[currentTool].color; ctx.lineWidth = materials[currentTool].width;
-                ctx.setLineDash([10, 10]); ctx.stroke(); ctx.setLineDash([]);
-            }
-
-            blueprint.nodes.forEach(n => {
-                ctx.beginPath(); ctx.arc(n.x, n.y, n.isFixed ? 10 : 8, 0, Math.PI * 2);
-                ctx.fillStyle = n.isFixed ? '#ef4444' : '#38bdf8';
-                ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'white'; ctx.stroke();
-            });
-
-            requestAnimationFrame(drawBuild);
+        // Initialize UI
+        const foodPalette = document.getElementById('food-palette');
+        for (const [key, val] of Object.entries(FOOD_TYPES)) {
+            const btn = document.createElement('button');
+            btn.className = `food-btn ${key === selectedFood ? 'active' : ''}`;
+            btn.innerHTML = `<span>${val.emoji}</span><span>${key}</span>`;
+            btn.onclick = () => {
+                selectedFood = key;
+                document.querySelectorAll('.food-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+            foodPalette.appendChild(btn);
         }
-        drawBuild();
 
-        // --- 5. SIMULATION LOGIC ---
-        function buildPhysicsWorld() {
-            Composite.remove(engine.world, [...simBodies, ...simConstraints]);
-            if (carComposite) Composite.remove(engine.world, carComposite);
-            simBodies = []; simConstraints = [];
-            
-            engine.gravity.y = settings.gravity;
-            const bridgeGroup = Body.nextGroup(true); // Ensures bridge parts don't collide with EACH OTHER, only the car
+        // --- 4. CLASSES ---
+        class Creature {
+            constructor(x, y, speciesName) {
+                this.x = x; this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.setSpecies(speciesName);
+            }
 
-            const bodyMap = {};
+            setSpecies(speciesName) {
+                this.species = speciesName;
+                const stats = SPECIES[speciesName];
+                this.color = stats.color;
+                this.size = stats.size;
+                this.maxSpeed = stats.speed;
+                this.sight = stats.sight;
+                this.diet = stats.diet;
+                this.turnsInto = stats.turnsInto;
+            }
 
-            // Generate Nodes
-            blueprint.nodes.forEach(n => {
-                const isFixed = n.isFixed;
-                // Make nodes small and non-colliding (sensors) so the car drives on the planks, not the nodes
-                const body = Bodies.circle(n.x, n.y, 4, { 
-                    isStatic: isFixed, isSensor: true,
-                    mass: isFixed ? 0 : settings.bridgeMass / 2, 
-                    collisionFilter: { group: bridgeGroup },
-                    render: { fillStyle: isFixed ? '#ef4444' : '#38bdf8' }
+            evolve(newSpecies) {
+                createParticles(this.x, this.y, this.color); // Explosion effect
+                this.setSpecies(newSpecies);
+                createParticles(this.x, this.y, this.color); // New color effect
+            }
+
+            update() {
+                // 1. Swarm / Hunt Logic
+                let targetX = null; let targetY = null; let closestDist = this.sight;
+                let targetIsCreature = false;
+                let targetObj = null;
+
+                // Look for physical food drops
+                foods.forEach(f => {
+                    if (this.diet.includes(f.type)) {
+                        const d = Math.hypot(f.x - this.x, f.y - this.y);
+                        if (d < closestDist) { closestDist = d; targetX = f.x; targetY = f.y; targetObj = f; }
+                    }
                 });
-                bodyMap[n.id] = body; simBodies.push(body);
-            });
 
-            // Generate Solid Planks & Cables
-            blueprint.links.forEach(l => {
-                const b1 = bodyMap[l.n1.id]; const b2 = bodyMap[l.n2.id];
-                const matInfo = materials[l.mat];
-                const dist = Math.hypot(l.n2.x - l.n1.x, l.n2.y - l.n1.y);
-                const midX = (l.n1.x + l.n2.x) / 2; const midY = (l.n1.y + l.n2.y) / 2;
-                const angle = Math.atan2(l.n2.y - l.n1.y, l.n2.x - l.n1.x);
-
-                if (matInfo.isSolid) {
-                    // Create a physical rectangle for the car to drive on
-                    const plank = Bodies.rectangle(midX, midY, dist, matInfo.width, {
-                        angle: angle, friction: 0.9,
-                        mass: (settings.bridgeMass * matInfo.massMult * dist) / 100,
-                        collisionFilter: { group: bridgeGroup },
-                        render: { fillStyle: matInfo.color }
+                // Look for other creatures to eat (if diet allows)
+                if (!targetObj) {
+                    creatures.forEach(c => {
+                        if (c !== this && this.diet.includes(c.species)) {
+                            const d = Math.hypot(c.x - this.x, c.y - this.y);
+                            if (d < closestDist) { 
+                                closestDist = d; targetX = c.x; targetY = c.y; 
+                                targetIsCreature = true; targetObj = c; 
+                            }
+                        }
                     });
-                    simBodies.push(plank);
-
-                    // Pin plank to the two nodes
-                    simConstraints.push(Constraint.create({
-                        bodyA: b1, bodyB: plank, pointB: { x: -dist/2, y: 0 },
-                        stiffness: matInfo.stiffness, length: 0, render: { visible: false }
-                    }));
-                    simConstraints.push(Constraint.create({
-                        bodyA: b2, bodyB: plank, pointB: { x: dist/2, y: 0 },
-                        stiffness: matInfo.stiffness, length: 0, render: { visible: false }
-                    }));
-                } else {
-                    // Cable is just a visual tension line, no physical plank
-                    simConstraints.push(Constraint.create({
-                        bodyA: b1, bodyB: b2, stiffness: matInfo.stiffness, damping: 0.1,
-                        render: { strokeStyle: matInfo.color, lineWidth: matInfo.width }
-                    }));
                 }
-            });
 
-            Composite.add(engine.world, [...simBodies, ...simConstraints]);
+                // Move towards target, otherwise wander randomly
+                if (targetX !== null) {
+                    const angle = Math.atan2(targetY - this.y, targetX - this.x);
+                    this.vx += Math.cos(angle) * 0.1;
+                    this.vy += Math.sin(angle) * 0.1;
 
-            // Generate Car (Spawned slightly higher to drop onto the cliff)
-            carComposite = Composite.create();
-            const chassis = Bodies.rectangle(120, height - 380, 80, 25, { 
-                mass: settings.carWeight, render: { fillStyle: '#ef4444' }
-            });
-            // Wheels have high friction so they grip the road/wood
-            const wheelOpts = { friction: 1.0, restitution: 0.1, render: { fillStyle: '#111' }};
-            const wheelA = Bodies.circle(90, height - 360, 15, wheelOpts);
-            const wheelB = Bodies.circle(150, height - 360, 15, wheelOpts);
-            
-            const axelA = Constraint.create({ bodyA: chassis, pointA: {x: -30, y: 10}, bodyB: wheelA, stiffness: 0.1, length: 5, render:{visible:false} });
-            const axelB = Constraint.create({ bodyA: chassis, pointA: {x: 30, y: 10}, bodyB: wheelB, stiffness: 0.1, length: 5, render:{visible:false} });
-            
-            Composite.add(carComposite, [chassis, wheelA, wheelB, axelA, axelB]);
-            Composite.add(engine.world, carComposite);
+                    // Eat logic!
+                    if (closestDist < this.size + 4) {
+                        let eatenItemName = "";
+                        
+                        if (targetIsCreature) {
+                            eatenItemName = targetObj.species;
+                            targetObj.dead = true; // Kill the prey
+                            createParticles(targetObj.x, targetObj.y, '#ef4444');
+                        } else {
+                            eatenItemName = targetObj.type;
+                            targetObj.eaten = true; // Consume the food drop
+                        }
+
+                        // Check Evolution Recipes
+                        if (this.turnsInto[eatenItemName]) {
+                            this.evolve(this.turnsInto[eatenItemName]);
+                        }
+                    }
+                } else {
+                    // Wander
+                    this.vx += (Math.random() - 0.5) * 0.5;
+                    this.vy += (Math.random() - 0.5) * 0.5;
+                }
+
+                // Apply velocity and limits
+                const speed = Math.hypot(this.vx, this.vy);
+                if (speed > this.maxSpeed) {
+                    this.vx = (this.vx / speed) * this.maxSpeed;
+                    this.vy = (this.vy / speed) * this.maxSpeed;
+                }
+
+                this.x += this.vx; this.y += this.vy;
+
+                // Screen Wrap
+                if (this.x < 320) this.x = width;
+                if (this.x > width) this.x = 320;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+            }
+
+            draw() {
+                // Draw sight radius (faint)
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.sight, 0, Math.PI * 2);
+                ctx.strokeStyle = this.color + '22'; ctx.lineWidth = 1; ctx.stroke();
+
+                // Draw Body
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+                ctx.fill(); ctx.shadowBlur = 0; // reset
+            }
         }
 
-        // Apply constant force to chassis to drive it right
-        Events.on(engine, 'beforeUpdate', () => {
-            if (mode === 'test' && carComposite) {
-                const chassis = carComposite.bodies[0];
-                if (chassis.position.x < width - 150) {
-                    Body.setVelocity(chassis, { x: 3.5, y: chassis.velocity.y });
+        class FoodDrop {
+            constructor(x, y, type) {
+                this.x = x; this.y = y; this.type = type;
+                this.color = FOOD_TYPES[type].color;
+                this.eaten = false;
+                this.life = 1000; // decays over time
+            }
+            update() { this.life--; }
+            draw() {
+                ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; ctx.fill();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                this.vx = (Math.random() - 0.5) * 4; this.vy = (Math.random() - 0.5) * 4;
+                this.life = 30; this.maxLife = 30;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.life--; }
+            draw() {
+                ctx.globalAlpha = this.life / this.maxLife;
+                ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 3, 3);
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        function createParticles(x, y, color) {
+            for(let i=0; i<8; i++) particles.push(new Particle(x, y, color));
+        }
+
+        // --- 5. CONTROLS & LOOP ---
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.clientX > 320) {
+                // Drop a cluster of food
+                for(let i=0; i<3; i++) {
+                    foods.push(new FoodDrop(e.clientX + (Math.random()*20-10), e.clientY + (Math.random()*20-10), selectedFood));
                 }
             }
         });
 
-        // --- 6. UI ---
-        function updateSettings() {
-            settings.snapToGrid = document.getElementById('snap-grid').checked;
-            settings.gravity = parseFloat(document.getElementById('gravity').value);
-            settings.carWeight = parseInt(document.getElementById('car-weight').value);
-            settings.bridgeMass = parseInt(document.getElementById('bridge-mass').value);
-            
-            document.getElementById('grav-val').innerText = settings.gravity;
-            document.getElementById('car-val').innerText = settings.carWeight;
-            document.getElementById('mass-val').innerText = settings.bridgeMass;
-        }
-
-        window.setTool = function(tool, btn) {
-            currentTool = tool;
-            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        }
-
-        window.toggleSimulation = function() {
-            const btn = document.getElementById('sim-btn');
-            const status = document.getElementById('status');
-            
-            if (mode === 'build') {
-                mode = 'test';
-                btn.innerHTML = '🛑 Stop & Edit'; btn.classList.add('stop');
-                status.innerHTML = 'MODE: SIMULATING'; status.style.color = '#4ade80'; status.style.borderColor = '#4ade80';
-                
-                buildPhysicsWorld();
-                Runner.run(runner, engine);
-            } else {
-                mode = 'build';
-                btn.innerHTML = '▶ Test Bridge'; btn.classList.remove('stop');
-                status.innerHTML = 'MODE: BUILDING'; status.style.color = '#fbbf24'; status.style.borderColor = '#fbbf24';
-                
-                Runner.stop(runner);
-                Composite.remove(engine.world, [...simBodies, ...simConstraints]);
-                if (carComposite) Composite.remove(engine.world, carComposite);
+        window.spawnCells = function(amount) {
+            for(let i=0; i<amount; i++) {
+                creatures.push(new Creature(320 + Math.random()*(width-320), Math.random()*height, 'Cell'));
             }
         }
 
-        window.clearBridge = function() {
-            if (mode === 'test') toggleSimulation();
-            blueprint.nodes = blueprint.nodes.filter(n => n.isFixed);
-            blueprint.links = [];
+        window.clearWorld = function() { creatures = []; foods = []; }
+
+        function updateStats() {
+            const counts = {};
+            creatures.forEach(c => { counts[c.species] = (counts[c.species] || 0) + 1; });
+            
+            let html = '';
+            for (const [species, count] of Object.entries(counts)) {
+                html += `<div class="stat-row">
+                    <span style="color: ${SPECIES[species].color}; font-weight:bold;">${species}</span>
+                    <span>${count}</span>
+                </div>`;
+            }
+            if (creatures.length === 0) html = '<div style="color:#64748b; text-align:center; margin-top:20px;">Ecosystem is empty.</div>';
+            document.getElementById('stats-panel').innerHTML = html;
         }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.3)'; // Trail effect
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Update & Draw Foods
+            foods = foods.filter(f => !f.eaten && f.life > 0);
+            foods.forEach(f => { f.update(); f.draw(); });
+
+            // Update & Draw Creatures
+            creatures = creatures.filter(c => !c.dead);
+            creatures.forEach(c => { c.update(); c.draw(); });
+
+            // Particles
+            particles = particles.filter(p => p.life > 0);
+            particles.forEach(p => { p.update(); p.draw(); });
+
+            // UI Stats updates every ~60 frames
+            if(Math.random() < 0.05) updateStats();
+
+            requestAnimationFrame(animate);
+        }
+
+        // Start
+        spawnCells(10);
+        animate();
 
         window.addEventListener('resize', () => {
-            width = window.innerWidth - 340; height = window.innerHeight;
-            render.canvas.width = width; render.canvas.height = height;
-            drawCanvas.width = width; drawCanvas.height = height;
+            width = window.innerWidth; height = window.innerHeight;
+            canvas.width = width; canvas.height = height;
         });
     </script>
 </body>
