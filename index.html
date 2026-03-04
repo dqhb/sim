@@ -3,302 +3,358 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>bowling</title>
+    <title>sim</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #111; font-family: 'Segoe UI', Tahoma, sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: 'Segoe UI', sans-serif; user-select: none; }
         canvas { display: block; }
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        #instructions {
-            position: absolute; bottom: 30px; width: 100%; text-align: center;
-            color: white; font-size: 1.5rem; font-weight: bold; text-shadow: 2px 2px 4px black;
+        
+        /* UI Panel */
+        #ui-panel {
+            position: absolute; top: 0; left: 0; width: 320px; height: 100%;
+            background: rgba(15, 23, 42, 0.95); color: white; padding: 20px;
+            box-sizing: border-box; border-right: 3px solid #334155;
+            display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.3);
         }
-        #hud {
-            position: absolute; top: 20px; left: 20px;
-            background: rgba(0, 0, 0, 0.8); padding: 15px 25px; border-radius: 8px;
-            color: white; font-size: 1.2rem; border: 2px solid #555;
+        
+        h1 { margin: 0; font-size: 1.5rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; }
+        h2 { margin: 0; font-size: 1rem; color: #94a3b8; border-bottom: 1px solid #334155; padding-bottom: 5px; }
+        
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 0.85rem; display: flex; justify-content: space-between; color: #cbd5e1; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: #38bdf8; }
+        
+        .material-btn {
+            background: #1e293b; border: 2px solid #334155; color: white;
+            padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;
+            display: flex; justify-content: space-between; align-items: center; transition: 0.2s;
         }
-        button {
-            pointer-events: auto; background: #4ade80; border: none; padding: 10px 20px; 
-            font-size: 1.1rem; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 10px;
+        .material-btn:hover { background: #334155; }
+        .material-btn.active { border-color: #38bdf8; background: rgba(56, 189, 248, 0.2); }
+        
+        .action-btn {
+            background: #4ade80; color: #064e3b; border: none; padding: 15px;
+            font-size: 1.1rem; font-weight: bold; border-radius: 6px; cursor: pointer;
+            text-transform: uppercase; transition: 0.2s; margin-top: 10px;
         }
+        .action-btn:hover { background: #22c55e; transform: translateY(-2px); }
+        .action-btn.stop { background: #ef4444; color: white; }
+        .action-btn.stop:hover { background: #dc2626; }
+        .action-btn.clear { background: #64748b; color: white; padding: 10px; font-size: 0.9rem;}
+        
+        #status { font-size: 1.2rem; font-weight: bold; color: #fbbf24; text-align: center; padding: 10px; border: 2px dashed #fbbf24; border-radius: 6px; }
+        
+        /* Custom Canvas for Drawing Connections */
+        #draw-canvas { position: absolute; top: 0; left: 320px; pointer-events: none; z-index: 10; }
+        #matter-container { position: absolute; top: 0; left: 320px; width: calc(100% - 320px); height: 100%; cursor: crosshair; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
 <body>
 
-    <div id="ui-layer">
-        <div id="hud">
-            <div style="font-size: 1.8rem; font-weight: bold; color: #fbbf24;">BOWLING PRO</div>
-            <div id="state-text" style="color: #ccc; margin-top: 5px;">State: Aiming</div>
-            <button onclick="resetLane()">Reset Lane</button>
+    <div id="ui-panel">
+        <h1>Bridge Builder</h1>
+        <div id="status">MODE: BUILDING</div>
+        
+        <h2>Materials</h2>
+        <div class="control-group">
+            <button class="material-btn active" onclick="setMaterial('wood', this)">
+                <span>🪵 Wood</span> <span style="font-size:0.7rem; color:#94a3b8;">Medium</span>
+            </button>
+            <button class="material-btn" onclick="setMaterial('steel', this)">
+                <span>⚙️ Steel</span> <span style="font-size:0.7rem; color:#94a3b8;">Strong</span>
+            </button>
+            <button class="material-btn" onclick="setMaterial('cable', this)">
+                <span>🧵 Cable</span> <span style="font-size:0.7rem; color:#94a3b8;">Flexible</span>
+            </button>
         </div>
-        <div id="instructions">Use MOUSE to move left/right.<br>CLICK and PUSH mouse UP to bowl!</div>
+
+        <h2>Physics Settings</h2>
+        <div class="control-group">
+            <label>Gravity <span id="grav-val">1.0</span></label>
+            <input type="range" id="gravity" min="0.1" max="3" step="0.1" value="1.0" oninput="updateSettings()">
+            
+            <label>Car Weight <span id="car-val">500</span></label>
+            <input type="range" id="car-weight" min="100" max="2000" step="100" value="500" oninput="updateSettings()">
+            
+            <label>Car Speed <span id="speed-val">3</span></label>
+            <input type="range" id="car-speed" min="1" max="8" step="0.5" value="3" oninput="updateSettings()">
+            
+            <label>Joint Mass (Bridge Weight) <span id="joint-val">10</span></label>
+            <input type="range" id="joint-mass" min="1" max="50" step="1" value="10" oninput="updateSettings()">
+        </div>
+
+        <button id="sim-btn" class="action-btn" onclick="toggleSimulation()">▶ Test Bridge</button>
+        <button class="action-btn clear" onclick="clearBridge()">🗑️ Clear Bridge</button>
+        
+        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: auto;">
+            <strong>Controls:</strong><br>
+            - Click & drag from an anchor/node to build.<br>
+            - Triangles make the strongest structures!
+        </div>
     </div>
 
+    <div id="matter-container"></div>
+    <canvas id="draw-canvas"></canvas>
+
     <script>
-        // --- 1. PROCEDURAL TEXTURE GENERATION ---
-        // Generates a wood plank texture for the lane
-        function createWoodTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512; canvas.height = 1024;
-            const ctx = canvas.getContext('2d');
-            
-            // Base wood color
-            ctx.fillStyle = '#cda971'; ctx.fillRect(0, 0, 512, 1024);
-            
-            // Draw wood grain lines
-            ctx.fillStyle = '#b58e50';
-            for(let i = 0; i < 200; i++) {
-                ctx.fillRect(Math.random() * 512, 0, Math.random() * 3 + 1, 1024);
-            }
-            // Draw plank dividers
-            ctx.fillStyle = '#332211';
-            for(let i = 1; i < 6; i++) {
-                ctx.fillRect(i * (512/6) - 2, 0, 4, 1024);
-            }
-            
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(2, 6);
-            return tex;
-        }
+        // --- 1. SETUP MATTER.JS ---
+        const Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner;
+        const Bodies = Matter.Bodies, Composite = Matter.Composite, Constraint = Matter.Constraint;
+        const Events = Matter.Events, Vector = Matter.Vector;
 
-        // Generates the classic red stripes for the pins
-        function createPinTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 256; canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 256, 256);
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(0, 160, 256, 15); // Bottom stripe
-            ctx.fillRect(0, 190, 256, 15); // Top stripe
-            
-            return new THREE.CanvasTexture(canvas);
-        }
-
-        // --- 2. SETUP THREE.JS (Graphics) & CANNON.JS (Physics) ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a2e);
+        const container = document.getElementById('matter-container');
+        const drawCanvas = document.getElementById('draw-canvas');
+        const ctx = drawCanvas.getContext('2d');
         
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 1.5, 6);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
-
-        const world = new CANNON.World();
-        world.gravity.set(0, -9.82, 0); // Earth gravity
-        world.broadphase = new CANNON.NaiveBroadphase();
-        world.solver.iterations = 20;
-
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); scene.add(ambientLight);
-        const spotLight = new THREE.SpotLight(0xffffff, 0.8);
-        spotLight.position.set(0, 10, 5);
-        spotLight.castShadow = true;
-        spotLight.shadow.mapSize.width = 2048; spotLight.shadow.mapSize.height = 2048;
-        scene.add(spotLight);
+        let width = window.innerWidth - 320; let height = window.innerHeight;
         
-        // Add a light directly over the pins
-        const pinLight = new THREE.PointLight(0xffffff, 0.6, 20);
-        pinLight.position.set(0, 4, -18);
-        scene.add(pinLight);
-
-        // --- 3. CREATE THE ENVIRONMENT ---
-        // Materials
-        const woodTex = createWoodTexture();
-        const laneMat = new THREE.MeshStandardMaterial({ 
-            map: woodTex, roughness: 0.1, metalness: 0.1 // Glossy finish!
+        const engine = Engine.create();
+        const render = Render.create({
+            element: container, engine: engine,
+            options: { width, height, wireframes: false, background: '#87CEEB', hasBounds: true }
         });
-        const darkMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
 
-        // Lane Graphics
-        const laneWidth = 2; const laneLength = 24;
-        const laneGeo = new THREE.BoxGeometry(laneWidth, 0.2, laneLength);
-        const laneMesh = new THREE.Mesh(laneGeo, laneMat);
-        laneMesh.position.set(0, -0.1, -10);
-        laneMesh.receiveShadow = true;
-        scene.add(laneMesh);
+        Render.run(render);
+        const runner = Runner.create(); // Don't run yet, we are in build mode
 
-        // Lane Physics
-        const laneBody = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(laneWidth/2, 0.1, laneLength/2)) });
-        laneBody.position.set(0, -0.1, -10);
-        world.addBody(laneBody);
-
-        // Gutters (Visual only for simplicity, if ball falls off lane, it falls)
-        const gutterL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, laneLength), darkMat);
-        gutterL.position.set(-1.25, -0.15, -10); scene.add(gutterL);
-        const gutterR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, laneLength), darkMat);
-        gutterR.position.set(1.25, -0.15, -10); scene.add(gutterR);
-
-        // --- 4. CREATE THE BOWLING BALL ---
-        const ballRadius = 0.25;
-        let ballMesh, ballBody;
+        // --- 2. GAME STATE & SETTINGS ---
+        let mode = 'build'; // 'build' or 'test'
+        let currentMaterial = 'wood';
+        let blueprint = { nodes: [], links: [] }; // Stores our drawn bridge
         
-        function initBall() {
-            if(ballMesh) { scene.remove(ballMesh); world.remove(ballBody); }
+        let settings = { gravity: 1.0, carWeight: 500, carSpeed: 3, jointMass: 10 };
+        const materials = {
+            wood: { stiffness: 0.9, color: '#8b5a2b', width: 8, strength: 1.5 },
+            steel: { stiffness: 1.0, color: '#94a3b8', width: 6, strength: 3.0 },
+            cable: { stiffness: 0.1, color: '#1e293b', width: 3, strength: 0.8 }
+        };
+
+        let draggingNode = null; let mouseX = 0; let mouseY = 0;
+        let carComposite = null;
+
+        // --- 3. CREATE TERRAIN & ANCHORS ---
+        const terrainOpts = { isStatic: true, render: { fillStyle: '#2d8a3e' }, friction: 0.8 };
+        const leftCliff = Bodies.rectangle(150, height - 150, 400, 400, terrainOpts);
+        const rightCliff = Bodies.rectangle(width - 150, height - 150, 400, 400, terrainOpts);
+        const riverOpts = { isStatic: true, isSensor: true, render: { fillStyle: '#3b82f6', opacity: 0.7 } };
+        const river = Bodies.rectangle(width/2, height - 50, width, 100, riverOpts);
+        
+        Composite.add(engine.world, [leftCliff, rightCliff, river]);
+
+        // Create fixed anchor points to build from
+        function addAnchor(x, y) {
+            blueprint.nodes.push({ x, y, isFixed: true, id: Math.random().toString(36).substr(2, 9) });
+        }
+        addAnchor(330, height - 360); addAnchor(330, height - 250); // Left anchors
+        addAnchor(width - 330, height - 360); addAnchor(width - 330, height - 250); // Right anchors
+
+        // --- 4. BUILD MODE LOGIC (UI & Drawing) ---
+        function resize() {
+            width = window.innerWidth - 320; height = window.innerHeight;
+            render.canvas.width = width; render.canvas.height = height;
+            drawCanvas.width = width; drawCanvas.height = height;
+        }
+        window.addEventListener('resize', resize); resize();
+
+        container.addEventListener('mousedown', (e) => {
+            if (mode !== 'build') return;
+            const rect = container.getBoundingClientRect();
+            const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
             
-            // Graphics
-            const ballMat = new THREE.MeshStandardMaterial({ 
-                color: 0x3b82f6, roughness: 0.2, metalness: 0.4 
+            // Find closest node
+            let closest = null; let minDist = 30; // Snap radius
+            blueprint.nodes.forEach(n => {
+                const dist = Math.hypot(n.x - mx, n.y - my);
+                if (dist < minDist) { minDist = dist; closest = n; }
             });
-            ballMesh = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 32, 32), ballMat);
-            ballMesh.castShadow = true;
-            scene.add(ballMesh);
 
-            // Physics (Heavy mass so it plows through pins)
-            ballBody = new CANNON.Body({ 
-                mass: 6, 
-                shape: new CANNON.Sphere(ballRadius),
-                linearDamping: 0.1, angularDamping: 0.1
+            if (closest) draggingNode = closest;
+        });
+
+        container.addEventListener('mousemove', (e) => {
+            if (mode !== 'build') return;
+            const rect = container.getBoundingClientRect();
+            mouseX = e.clientX - rect.left; mouseY = e.clientY - rect.top;
+        });
+
+        container.addEventListener('mouseup', (e) => {
+            if (mode !== 'build' || !draggingNode) return;
+            
+            // Find if we released on another node
+            let targetNode = null; let minDist = 30;
+            blueprint.nodes.forEach(n => {
+                if (n === draggingNode) return;
+                const dist = Math.hypot(n.x - mouseX, n.y - mouseY);
+                if (dist < minDist) { minDist = dist; targetNode = n; }
             });
-            ballBody.position.set(0, ballRadius + 0.1, 2);
-            world.addBody(ballBody);
-        }
 
-        // --- 5. CREATE THE PINS ---
-        const pins = [];
-        const pinTex = createPinTexture();
-        const pinMat = new THREE.MeshStandardMaterial({ map: pinTex, roughness: 0.4 });
-        
-        // We use a cylinder that is slightly tapered
-        const pinGeo = new THREE.CylinderGeometry(0.08, 0.12, 0.6, 16); 
-        
-        function createPin(x, z) {
-            const mesh = new THREE.Mesh(pinGeo, pinMat);
-            mesh.castShadow = true; scene.add(mesh);
-            
-            const shape = new CANNON.Cylinder(0.08, 0.12, 0.6, 16);
-            // Cannon cylinders are oriented along Z by default, we need them upright (Y)
-            const q = new CANNON.Quaternion(); q.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
-            
-            const body = new CANNON.Body({ mass: 1.5 }); // Lighter than ball
-            body.addShape(shape, new CANNON.Vec3(0,0,0), q);
-            body.position.set(x, 0.3, z);
-            world.addBody(body);
-
-            pins.push({ mesh, body });
-        }
-
-        function setupPins() {
-            // Clear old pins
-            pins.forEach(p => { scene.remove(p.mesh); world.remove(p.body); });
-            pins.length = 0;
-
-            // 10-pin triangle layout
-            const spacing = 0.3;
-            const startZ = -18;
-            
-            createPin(0, startZ); // Row 1 (Head pin)
-            createPin(-spacing/2, startZ - spacing); createPin(spacing/2, startZ - spacing); // Row 2
-            createPin(-spacing, startZ - spacing*2); createPin(0, startZ - spacing*2); createPin(spacing, startZ - spacing*2); // Row 3
-            createPin(-spacing*1.5, startZ - spacing*3); createPin(-spacing*0.5, startZ - spacing*3); createPin(spacing*0.5, startZ - spacing*3); createPin(spacing*1.5, startZ - spacing*3); // Row 4
-        }
-
-        // --- 6. CONTROLS & GAME LOGIC ---
-        let gameState = 'aiming'; // aiming, rolling
-        let startMouseY = 0;
-        let isDragging = false;
-
-        window.addEventListener('mousemove', (e) => {
-            if (gameState === 'aiming') {
-                // Move ball left/right based on mouse position
-                const normalizedX = (e.clientX / window.innerWidth) * 2 - 1;
-                // Keep ball within lane bounds
-                const targetX = Math.max(-0.8, Math.min(0.8, normalizedX * 1.5));
-                ballBody.position.x = targetX;
-                ballBody.velocity.set(0,0,0); // stop rolling
-                ballBody.angularVelocity.set(0,0,0);
+            // If no target node, create a new one!
+            if (!targetNode) {
+                targetNode = { x: mouseX, y: mouseY, isFixed: false, id: Math.random().toString(36).substr(2, 9) };
+                blueprint.nodes.push(targetNode);
             }
+
+            // Prevent duplicate links
+            const linkExists = blueprint.links.some(l => 
+                (l.n1.id === draggingNode.id && l.n2.id === targetNode.id) || 
+                (l.n2.id === draggingNode.id && l.n1.id === targetNode.id)
+            );
+
+            if (!linkExists) {
+                blueprint.links.push({ n1: draggingNode, n2: targetNode, mat: currentMaterial });
+            }
+            draggingNode = null;
         });
 
-        window.addEventListener('mousedown', (e) => {
-            if (gameState === 'aiming') {
-                isDragging = true;
-                startMouseY = e.clientY;
-                document.getElementById('state-text').innerText = "State: PUSH UP TO ROLL!";
+        // Custom Render Loop for Build Mode
+        function drawBuildOverlay() {
+            ctx.clearRect(0, 0, width, height);
+            if (mode !== 'build') return requestAnimationFrame(drawBuildOverlay);
+
+            // Draw Links
+            blueprint.links.forEach(link => {
+                const matInfo = materials[link.mat];
+                ctx.beginPath(); ctx.moveTo(link.n1.x, link.n1.y); ctx.lineTo(link.n2.x, link.n2.y);
+                ctx.strokeStyle = matInfo.color; ctx.lineWidth = matInfo.width; ctx.stroke();
+            });
+
+            // Draw Dragging Line
+            if (draggingNode) {
+                ctx.beginPath(); ctx.moveTo(draggingNode.x, draggingNode.y); ctx.lineTo(mouseX, mouseY);
+                ctx.strokeStyle = materials[currentMaterial].color;
+                ctx.lineWidth = materials[currentMaterial].width;
+                ctx.setLineDash([10, 10]); ctx.stroke(); ctx.setLineDash([]);
             }
-        });
 
-        window.addEventListener('mouseup', (e) => {
-            if (gameState === 'aiming' && isDragging) {
-                isDragging = false;
-                const endMouseY = e.clientY;
-                const distanceY = startMouseY - endMouseY; // How far up did you push?
+            // Draw Nodes
+            blueprint.nodes.forEach(n => {
+                ctx.beginPath(); ctx.arc(n.x, n.y, 8, 0, Math.PI * 2);
+                ctx.fillStyle = n.isFixed ? '#ef4444' : '#38bdf8';
+                ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'white'; ctx.stroke();
+            });
 
-                if (distanceY > 20) {
-                    gameState = 'rolling';
-                    document.getElementById('state-text').innerText = "State: Rolling!";
-                    document.getElementById('instructions').style.display = 'none';
+            requestAnimationFrame(drawBuildOverlay);
+        }
+        drawBuildOverlay();
 
-                    // Calculate throw power
-                    let power = Math.min(distanceY / 10, 40); // Cap max speed
-                    
-                    // Apply physical impulse to ball
-                    ballBody.velocity.set(0, 0, -power);
-                    // Add a tiny bit of forward spin
-                    ballBody.angularVelocity.set(-power/2, 0, 0); 
+        // --- 5. SIMULATION MODE (Matter.js Generation) ---
+        let simBodies = []; let simConstraints = [];
+
+        function buildPhysicsWorld() {
+            // Clear old sim
+            Composite.remove(engine.world, [...simBodies, ...simConstraints]);
+            if (carComposite) Composite.remove(engine.world, carComposite);
+            simBodies = []; simConstraints = [];
+            
+            engine.gravity.y = settings.gravity;
+
+            // Dictionary to map blueprint node IDs to Matter.js bodies
+            const bodyMap = {};
+
+            // 1. Generate Nodes (Joints)
+            blueprint.nodes.forEach(n => {
+                if (n.isFixed) {
+                    const body = Bodies.circle(n.x, n.y, 10, { isStatic: true, render: { fillStyle: '#ef4444' }});
+                    bodyMap[n.id] = body; simBodies.push(body);
                 } else {
-                    document.getElementById('state-text').innerText = "State: Aiming";
+                    const body = Bodies.circle(n.x, n.y, 6, { 
+                        mass: settings.jointMass, friction: 0.8,
+                        render: { fillStyle: '#38bdf8' }
+                    });
+                    bodyMap[n.id] = body; simBodies.push(body);
+                }
+            });
+
+            // 2. Generate Links (Constraints/Springs)
+            blueprint.links.forEach(l => {
+                const b1 = bodyMap[l.n1.id]; const b2 = bodyMap[l.n2.id];
+                const matInfo = materials[l.mat];
+                
+                const constraint = Constraint.create({
+                    bodyA: b1, bodyB: b2, stiffness: matInfo.stiffness, damping: 0.1,
+                    render: { strokeStyle: matInfo.color, lineWidth: matInfo.width }
+                });
+                simConstraints.push(constraint);
+            });
+
+            Composite.add(engine.world, [...simBodies, ...simConstraints]);
+
+            // 3. Generate The Test Car
+            carComposite = Composite.create();
+            const chassis = Bodies.rectangle(100, height - 390, 80, 30, { 
+                mass: settings.carWeight, render: { fillStyle: '#ef4444' }, collisionFilter: { group: -1 }
+            });
+            const wheelOpts = { friction: 0.9, restitution: 0.1, render: { fillStyle: '#111' }, collisionFilter: { group: -1 }};
+            const wheelA = Bodies.circle(70, height - 370, 15, wheelOpts);
+            const wheelB = Bodies.circle(130, height - 370, 15, wheelOpts);
+            
+            const axelA = Constraint.create({ bodyA: chassis, pointA: {x: -30, y: 15}, bodyB: wheelA, stiffness: 0.2, length: 5, render:{visible:false} });
+            const axelB = Constraint.create({ bodyA: chassis, pointA: {x: 30, y: 15}, bodyB: wheelB, stiffness: 0.2, length: 5, render:{visible:false} });
+            
+            Composite.add(carComposite, [chassis, wheelA, wheelB, axelA, axelB]);
+            Composite.add(engine.world, carComposite);
+        }
+
+        // Apply car driving force during simulation
+        Events.on(engine, 'beforeUpdate', () => {
+            if (mode === 'test' && carComposite) {
+                const chassis = carComposite.bodies[0];
+                if (chassis.position.x < width - 150) {
+                    // Push car right
+                    Matter.Body.setVelocity(chassis, { x: settings.carSpeed, y: chassis.velocity.y });
                 }
             }
         });
 
-        window.resetLane = function() {
-            initBall();
-            setupPins();
-            gameState = 'aiming';
-            camera.position.set(0, 1.5, 6); // Reset camera
-            document.getElementById('state-text').innerText = "State: Aiming";
-            document.getElementById('instructions').style.display = 'block';
-        }
-
-        // Initialize game
-        initBall();
-        setupPins();
-
-        // --- 7. MAIN LOOP ---
-        const clock = new THREE.Clock();
-
-        function animate() {
-            requestAnimationFrame(animate);
+        // --- 6. UI CONTROLS ---
+        function updateSettings() {
+            settings.gravity = parseFloat(document.getElementById('gravity').value);
+            settings.carWeight = parseInt(document.getElementById('car-weight').value);
+            settings.carSpeed = parseFloat(document.getElementById('car-speed').value);
+            settings.jointMass = parseInt(document.getElementById('joint-mass').value);
             
-            const dt = clock.getDelta();
-            // Step physics engine
-            world.step(1/60, dt, 3);
-
-            // Sync Ball Graphics to Physics Body
-            ballMesh.position.copy(ballBody.position);
-            ballMesh.quaternion.copy(ballBody.quaternion);
-
-            // Sync Pin Graphics to Physics Bodies
-            pins.forEach(p => {
-                p.mesh.position.copy(p.body.position);
-                p.mesh.quaternion.copy(p.body.quaternion);
-            });
-
-            // Camera follow (slightly behind and above ball)
-            if (gameState === 'rolling' && ballBody.position.z > -15) {
-                camera.position.z = ballBody.position.z + 4;
-                camera.position.x = ballBody.position.x * 0.5; // Slight pan
-            }
-
-            renderer.render(scene, camera);
+            document.getElementById('grav-val').innerText = settings.gravity;
+            document.getElementById('car-val').innerText = settings.carWeight;
+            document.getElementById('speed-val').innerText = settings.carSpeed;
+            document.getElementById('joint-val').innerText = settings.jointMass;
         }
 
-        animate();
+        window.setMaterial = function(mat, btn) {
+            currentMaterial = mat;
+            document.querySelectorAll('.material-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
 
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        window.toggleSimulation = function() {
+            const btn = document.getElementById('sim-btn');
+            const status = document.getElementById('status');
+            
+            if (mode === 'build') {
+                mode = 'test';
+                btn.innerHTML = '🛑 Stop & Edit'; btn.classList.add('stop');
+                status.innerHTML = 'MODE: SIMULATING'; status.style.color = '#4ade80'; status.style.borderColor = '#4ade80';
+                
+                buildPhysicsWorld();
+                Runner.run(runner, engine); // Start physics
+            } else {
+                mode = 'build';
+                btn.innerHTML = '▶ Test Bridge'; btn.classList.remove('stop');
+                status.innerHTML = 'MODE: BUILDING'; status.style.color = '#fbbf24'; status.style.borderColor = '#fbbf24';
+                
+                Runner.stop(runner); // Pause physics
+                // Clear the simulation bodies so the overlay can draw the blueprint again
+                Composite.remove(engine.world, [...simBodies, ...simConstraints]);
+                if (carComposite) Composite.remove(engine.world, carComposite);
+            }
+        }
+
+        window.clearBridge = function() {
+            if (mode === 'test') toggleSimulation();
+            blueprint.nodes = blueprint.nodes.filter(n => n.isFixed); // Keep anchors
+            blueprint.links = [];
+        }
+
     </script>
 </body>
 </html>
