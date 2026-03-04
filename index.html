@@ -5,382 +5,267 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>sim</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; user-select: none; }
-        canvas { display: block; cursor: crosshair; }
+        body { margin: 0; overflow: hidden; background-color: #020617; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; user-select: none; }
+        canvas { display: block; image-rendering: pixelated; cursor: crosshair; }
         
         #ui-panel {
-            position: absolute; top: 0; right: 0; width: 280px; height: 100%;
-            background: rgba(10, 10, 20, 0.95); border-left: 2px solid #334155;
+            position: absolute; top: 0; left: 0; width: 300px; height: 100%;
+            background: rgba(15, 23, 42, 0.95); border-right: 2px solid #334155;
             display: flex; flex-direction: column; padding: 20px; box-sizing: border-box;
-            box-shadow: -5px 0 20px rgba(0,0,0,0.5); z-index: 10;
+            box-shadow: 5px 0 20px rgba(0,0,0,0.8); z-index: 10;
         }
         
-        h1 { margin: 0 0 5px 0; font-size: 1.5rem; color: #facc15; text-transform: uppercase; }
+        h1 { margin: 0 0 5px 0; font-size: 1.5rem; color: #f59e0b; text-transform: uppercase; }
         p.subtitle { margin: 0 0 20px 0; font-size: 0.85rem; color: #94a3b8; }
         
-        h2 { margin: 10px 0; font-size: 0.9rem; color: #cbd5e1; border-bottom: 1px solid #475569; padding-bottom: 5px; text-transform: uppercase; }
+        h2 { margin: 15px 0 10px 0; font-size: 0.9rem; color: #cbd5e1; border-bottom: 1px solid #475569; padding-bottom: 5px; text-transform: uppercase; }
         
-        .body-btn {
+        .tool-btn {
             background: #1e293b; border: 2px solid #334155; color: white;
-            padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold;
+            padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;
             display: flex; align-items: center; gap: 10px; margin-bottom: 8px; transition: 0.2s;
-            text-align: left;
         }
-        .body-btn:hover { background: #334155; }
-        .body-btn.active { border-color: #facc15; background: rgba(250, 204, 21, 0.1); }
+        .tool-btn:hover { background: #334155; }
+        .tool-btn.active { border-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
         
-        .color-circle { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); }
+        .color-box { width: 16px; height: 16px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); }
 
-        .slider-container { margin: 15px 0; background: #1e293b; padding: 10px; border-radius: 6px; border: 1px solid #334155; }
-        input[type="range"] { width: 100%; margin-top: 5px; accent-color: #facc15; }
-
-        .control-btn { background: #ef4444; color: white; border: none; padding: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: auto; text-transform: uppercase; }
-        .control-btn:hover { background: #dc2626; }
+        .control-group { display: flex; gap: 10px; margin-top: 10px; }
+        .control-btn { flex: 1; background: #38bdf8; color: #0f172a; border: none; padding: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; text-transform: uppercase; }
+        .control-btn:hover { background: #0ea5e9; }
+        .control-btn.danger { background: #ef4444; color: white; }
+        .control-btn.danger:hover { background: #dc2626; }
         
-        #instructions { 
-            position: absolute; bottom: 20px; left: 20px; color: rgba(255,255,255,0.7); 
-            pointer-events: none; text-shadow: 1px 1px 2px black; z-index: 10;
-        }
+        #instructions { position: absolute; bottom: 20px; left: 320px; color: rgba(255,255,255,0.6); pointer-events: none; }
     </style>
 </head>
 <body>
 
     <div id="ui-panel">
-        <h1>Cosmic Forge</h1>
-        <p class="subtitle">Click & drag to launch. Objects attract each other.</p>
+        <h1>Wireworld</h1>
+        <p class="subtitle">Build circuits out of pixels.</p>
         
-        <h2>Spawn Body</h2>
-        <div id="body-palette">
-            </div>
+        <h2>Draw Tools</h2>
+        <button class="tool-btn active" id="tool-wire" onclick="setTool('wire')">
+            <div class="color-box" style="background:#f59e0b"></div><span>Copper Wire</span>
+        </button>
+        <button class="tool-btn" id="tool-spark" onclick="setTool('spark')">
+            <div class="color-box" style="background:#38bdf8"></div><span>Spark (Button)</span>
+        </button>
+        <button class="tool-btn" id="tool-erase" onclick="setTool('erase')">
+            <div class="color-box" style="background:#020617"></div><span>Eraser</span>
+        </button>
 
-        <div class="slider-container">
-            <label for="initial-vel" style="font-size: 0.9rem; color: #cbd5e1;">Initial Velocity: <span id="vel-val">2</span>x</label>
-            <input type="range" id="initial-vel" min="0.1" max="5" step="0.1" value="2">
+        <h2>Logic Stamps</h2>
+        <button class="tool-btn" id="tool-clock" onclick="setTool('clock')">⏱️ Clock Generator</button>
+        <button class="tool-btn" id="tool-diode" onclick="setTool('diode')">➡️ One-Way Diode</button>
+        <button class="tool-btn" id="tool-or" onclick="setTool('or')">🔀 OR Gate</button>
+
+        <div style="margin-top: auto;"></div>
+        
+        <h2>Simulation</h2>
+        <div class="control-group">
+            <button class="control-btn" id="play-btn" onclick="togglePlay()">Pause</button>
+            <button class="control-btn" onclick="step()">Step</button>
         </div>
-
-        <button class="control-btn" onclick="clearWorld()">🗑️ Clear Universe</button>
+        <button class="control-btn danger" style="width: 100%; margin-top: 10px;" onclick="clearGrid()">Clear Grid</button>
     </div>
     
-    <div id="instructions">
-        <b>Click & Drag</b> to launch planets/moons/asteroids.<br>
-        <b>Click</b> to place static Stars/Black Holes.
-    </div>
-    <canvas id="nbody-canvas"></canvas>
+    <div id="instructions"><b>Draw mode:</b> Click & drag. <b>Stamp mode:</b> Click to place part. <b>Sparks</b> travel down copper wires.</div>
+    <canvas id="wire-canvas"></canvas>
 
     <script>
-        const canvas = document.getElementById('nbody-canvas');
-        const ctx = canvas.getContext('2d', { alpha: false });
+        const canvas = document.getElementById('wire-canvas');
+        const ctx = canvas.getContext('2d');
         
-        let width, height;
-        let bodies = [];
-        let G = 0.5; // Gravitational Constant (adjust for faster/slower gravity)
+        const CELL_SIZE = 10;
+        let cols, rows;
+        let grid = [];
+        let isPlaying = true;
+        
+        // Wireworld States
+        const EMPTY = 0;
+        const WIRE = 1;     // Copper
+        const HEAD = 2;     // Electron Head (Spark)
+        const TAIL = 3;     // Electron Tail
 
-        // UI state
-        let currentBodyType = 'Planet';
-        let initialVelocityMultiplier = 2;
-        let mouseDown = false;
-        let startX, startY;
-
-        // --- 1. BODY DEFINITIONS ---
-        const BODY_TYPES = {
-            'Star': {
-                mass: 1000, size: 20, color: '#facc15', static: true, trail: false
-            },
-            'Planet': {
-                mass: 5, size: 8, color: '#38bdf8', static: false, trail: true
-            },
-            'Moon': {
-                mass: 0.5, size: 4, color: '#e2e8f0', static: false, trail: true
-            },
-            'Black Hole': {
-                mass: 5000, size: 15, color: '#1e293b', static: true, trail: false
-            },
-            'Asteroid': {
-                mass: 0.1, size: 2, color: '#888', static: false, trail: true
-            }
+        const COLORS = {
+            [EMPTY]: '#020617',
+            [WIRE]: '#f59e0b',
+            [HEAD]: '#38bdf8',
+            [TAIL]: '#ef4444'
         };
 
-        // UI Setup
-        const bodyPalette = document.getElementById('body-palette');
-        Object.keys(BODY_TYPES).forEach(key => {
-            const body = BODY_TYPES[key];
-            const btn = document.createElement('button');
-            btn.className = `body-btn ${key === currentBodyType ? 'active' : ''}`;
-            btn.innerHTML = `<div class="color-circle" style="background:${body.color}"></div><span>${key}</span>`;
-            if (key === 'Black Hole') btn.innerHTML = `<div class="color-circle" style="background:${body.color}; border-radius:0;"></div><span>${key}</span>`; // Different shape for BH
-            btn.onclick = () => {
-                currentBodyType = key;
-                document.querySelectorAll('.body-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            };
-            bodyPalette.appendChild(btn);
-        });
+        // --- PRE-FABRICATED LOGIC STAMPS ---
+        // 1 = Wire, 2 = Spark Head, 3 = Spark Tail, 0 = Empty
+        const STAMPS = {
+            'clock': [ // Generates an endless pulse
+                [1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 1],
+                [2, 0, 0, 0, 1],
+                [3, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1],
+                [0, 0, 0, 0, 1],
+                [0, 0, 0, 0, 1]
+            ],
+            'diode': [ // Only lets current flow left-to-right
+                [0, 1, 1, 0],
+                [1, 0, 0, 1],
+                [0, 1, 1, 0]
+            ],
+            'or': [ // Two inputs merge into one safely
+                [1, 1, 0, 0, 0],
+                [0, 0, 1, 1, 1],
+                [1, 1, 0, 0, 0]
+            ]
+        };
 
-        document.getElementById('initial-vel').addEventListener('input', (e) => {
-            initialVelocityMultiplier = parseFloat(e.target.value);
-            document.getElementById('vel-val').innerText = initialVelocityMultiplier.toFixed(1);
-        });
+        // UI State
+        let currentTool = 'wire';
+        let isDrawing = false;
+        let mouseX = 0, mouseY = 0;
 
-        // --- 2. THE BODY CLASS ---
-        class Body {
-            constructor(x, y, type) {
-                const props = BODY_TYPES[type];
-                this.x = x; this.y = y;
-                this.vx = 0; this.vy = 0;
-                this.mass = props.mass;
-                this.size = props.size;
-                this.color = props.color;
-                this.static = props.static; // Stars and Black Holes don't move
-                this.trail = props.trail;
-                this.type = type; // Store type for black hole check
+        function initGrid() {
+            cols = Math.floor(window.innerWidth / CELL_SIZE);
+            rows = Math.floor(window.innerHeight / CELL_SIZE);
+            canvas.width = cols * CELL_SIZE;
+            canvas.height = rows * CELL_SIZE;
+            
+            grid = new Array(cols).fill(0).map(() => new Array(rows).fill(EMPTY));
+        }
 
-                this.history = []; // For drawing trails
-                this.dead = false; // For removal after collision/black hole
+        window.clearGrid = function() {
+            for (let x = 0; x < cols; x++) {
+                for (let y = 0; y < rows; y++) grid[x][y] = EMPTY;
             }
+        }
 
-            // Apply gravitational force from another body
-            applyForce(other) {
-                if (this.static) return; // Static bodies don't get pushed
+        window.setTool = function(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tool-${tool}`).classList.add('active');
+        }
 
-                const dx = other.x - this.x;
-                const dy = other.y - this.y;
-                const distSq = dx * dx + dy * dy;
-                const dist = Math.sqrt(distSq);
+        window.togglePlay = function() {
+            isPlaying = !isPlaying;
+            document.getElementById('play-btn').innerText = isPlaying ? "Pause" : "Play";
+        }
 
-                // Prevent super-strong forces at zero distance
-                if (dist < 1) return;
+        // --- DRAWING & STAMPING ---
+        function applyTool(gridX, gridY) {
+            if (gridX < 0 || gridX >= cols || gridY < 0 || gridY >= rows) return;
 
-                const force = (G * this.mass * other.mass) / distSq;
-                const angle = Math.atan2(dy, dx);
-
-                this.vx += (Math.cos(angle) * force) / this.mass;
-                this.vy += (Math.sin(angle) * force) / this.mass;
+            if (currentTool === 'wire') grid[gridX][gridY] = WIRE;
+            else if (currentTool === 'erase') grid[gridX][gridY] = EMPTY;
+            else if (currentTool === 'spark') {
+                if (grid[gridX][gridY] === WIRE) grid[gridX][gridY] = HEAD; // Spark must be placed on wire
             }
-
-            update() {
-                if (this.static) return;
-
-                this.x += this.vx;
-                this.y += this.vy;
-
-                // Keep trail history limited
-                if (this.trail) {
-                    this.history.push({ x: this.x, y: this.y });
-                    if (this.history.length > 50) this.history.shift();
-                }
-            }
-
-            draw() {
-                // Draw trail first
-                if (this.trail && this.history.length > 1) {
-                    ctx.beginPath();
-                    ctx.moveTo(this.history[0].x, this.history[0].y);
-                    for (let i = 1; i < this.history.length; i++) {
-                        ctx.lineTo(this.history[i].x, this.history[i].y);
+            else if (STAMPS[currentTool]) {
+                // Apply stamp matrix
+                const stamp = STAMPS[currentTool];
+                for (let sy = 0; sy < stamp.length; sy++) {
+                    for (let sx = 0; sx < stamp[sy].length; sx++) {
+                        let tx = gridX + sx;
+                        let ty = gridY + sy;
+                        if (tx >= 0 && tx < cols && ty >= 0 && ty < rows) {
+                            if (stamp[sy][sx] !== 0) {
+                                grid[tx][ty] = stamp[sy][sx];
+                            }
+                        }
                     }
-                    ctx.strokeStyle = this.color + '44'; // Faint trail
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
                 }
-
-                // Draw body
-                ctx.beginPath();
-                if (this.type === 'Black Hole') {
-                    // Draw a dark disk with a "swirl" effect
-                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                    ctx.fillStyle = this.color;
-                    ctx.shadowBlur = this.size * 0.8;
-                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-
-                    // Event horizon (subtle inner ring)
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size * 0.6, 0, Math.PI * 2);
-                    ctx.strokeStyle = 'rgba(50,50,50,0.8)';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                } else {
-                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                    ctx.fillStyle = this.color;
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = this.color + '88';
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                }
+                isDrawing = false; // Prevent dragging stamps everywhere
             }
         }
 
-        // --- 3. GAME LOGIC & CONTROLS ---
-        function initCanvas() {
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
-        }
-
-        function clearWorld() {
-            bodies = [];
-        }
-
-        // Mouse interaction for spawning bodies
         canvas.addEventListener('mousedown', (e) => {
-            mouseDown = true;
-            startX = e.clientX;
-            startY = e.clientY;
-
-            // If it's a static body, place it directly on click
-            if (BODY_TYPES[currentBodyType].static) {
-                bodies.push(new Body(startX, startY, currentBodyType));
-                mouseDown = false; // Don't drag static bodies
+            isDrawing = true;
+            applyTool(Math.floor(e.clientX / CELL_SIZE), Math.floor(e.clientY / CELL_SIZE));
+        });
+        window.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDrawing && ['wire', 'erase', 'spark'].includes(currentTool)) {
+                applyTool(Math.floor(e.clientX / CELL_SIZE), Math.floor(e.clientY / CELL_SIZE));
             }
         });
 
-        canvas.addEventListener('mouseup', (e) => {
-            if (!mouseDown || BODY_TYPES[currentBodyType].static) return; // Already handled static placement
-
-            const endX = e.clientX;
-            const endY = e.clientY;
-
-            const dx = endX - startX;
-            const dy = endY - startY;
-
-            const newBody = new Body(startX, startY, currentBodyType);
-            newBody.vx = dx * 0.05 * initialVelocityMultiplier; // Adjust velocity scale
-            newBody.vy = dy * 0.05 * initialVelocityMultiplier;
-            bodies.push(newBody);
-
-            mouseDown = false;
-        });
-
-        // --- 4. THE SIMULATION LOOP ---
-        function animate() {
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, width, height);
-
-            // If mouse is down and not a static body, draw a "launch vector"
-            if (mouseDown && !BODY_TYPES[currentBodyType].static) {
-                ctx.beginPath();
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(mouseX, mouseY);
-                ctx.strokeStyle = BODY_TYPES[currentBodyType].color + 'aa';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                // Draw predicted initial position of the body
-                ctx.beginPath();
-                ctx.arc(startX, startY, BODY_TYPES[currentBodyType].size, 0, Math.PI * 2);
-                ctx.fillStyle = BODY_TYPES[currentBodyType].color + 'aa';
-                ctx.fill();
-            }
-
-            // Calculate forces and update positions
-            for (let i = 0; i < bodies.length; i++) {
-                for (let j = 0; j < bodies.length; j++) {
-                    if (i === j) continue;
-                    bodies[i].applyForce(bodies[j]);
+        // --- WIREWORLD LOGIC ENGINE ---
+        function countHeads(x, y) {
+            let count = 0;
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    if (i === 0 && j === 0) continue;
+                    let nx = x + i; let ny = y + j;
+                    if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+                        if (grid[nx][ny] === HEAD) count++;
+                    }
                 }
             }
+            return count;
+        }
 
-            // Update and draw bodies
-            let newBodies = [];
-            for (let i = 0; i < bodies.length; i++) {
-                let body = bodies[i];
-                if (body.dead) continue; // Skip dead bodies
-
-                body.update();
-                body.draw();
-                newBodies.push(body);
-            }
-            bodies = newBodies; // Remove dead bodies
-
-            // Collision detection
-            for (let i = bodies.length - 1; i >= 0; i--) {
-                for (let j = i - 1; j >= 0; j--) { // Check against already processed bodies
-                    const b1 = bodies[i];
-                    const b2 = bodies[j];
-
-                    if (b1.dead || b2.dead) continue; // Skip if already marked for removal
-
-                    const dx = b1.x - b2.x;
-                    const dy = b1.y - b2.y;
-                    const dist = Math.hypot(dx, dy);
-
-                    if (dist < b1.size + b2.size) { // Collision!
-                        if (b1.type === 'Black Hole' || b2.type === 'Black Hole') {
-                            // Black hole consumes the other body
-                            const bh = b1.type === 'Black Hole' ? b1 : b2;
-                            const victim = bh === b1 ? b2 : b1;
-                            
-                            // Visual effect for consumption
-                            createParticles(victim.x, victim.y, victim.color, 15);
-                            victim.dead = true;
-                            // Black hole grows slightly
-                            bh.mass += victim.mass * 0.5; // Only absorb some mass
-                            bh.size += victim.size * 0.1; // Grow size a bit
-                            
+        window.step = function() {
+            let nextGrid = new Array(cols).fill(0).map(() => new Array(rows).fill(EMPTY));
+            
+            for (let x = 0; x < cols; x++) {
+                for (let y = 0; y < rows; y++) {
+                    let state = grid[x][y];
+                    
+                    if (state === EMPTY) {
+                        nextGrid[x][y] = EMPTY;
+                    } 
+                    else if (state === HEAD) {
+                        nextGrid[x][y] = TAIL; // Spark moves forward, leaving a tail
+                    } 
+                    else if (state === TAIL) {
+                        nextGrid[x][y] = WIRE; // Tail cools down back to wire
+                    } 
+                    else if (state === WIRE) {
+                        // A wire becomes a spark if exactly 1 or 2 neighboring cells are sparks
+                        let heads = countHeads(x, y);
+                        if (heads === 1 || heads === 2) {
+                            nextGrid[x][y] = HEAD;
                         } else {
-                            // Inelastic collision for regular bodies
-                            const larger = b1.mass > b2.mass ? b1 : b2;
-                            const smaller = b1.mass > b2.mass ? b2 : b1;
-
-                            createParticles(smaller.x, smaller.y, smaller.color, 10);
-                            smaller.dead = true; // Mark for removal
-
-                            // Larger body absorbs mass and momentum
-                            larger.mass += smaller.mass * 0.5; // Only absorb some mass
-                            larger.size += smaller.size * 0.2; // Grow size a bit
-                            
-                            // Merge velocities (simple average)
-                            larger.vx = (larger.vx * larger.mass + smaller.vx * smaller.mass) / (larger.mass + smaller.mass);
-                            larger.vy = (larger.vy * larger.mass + smaller.vy * smaller.mass) / (larger.mass + smaller.mass);
+                            nextGrid[x][y] = WIRE;
                         }
                     }
                 }
             }
-
-            // Remove dead bodies for next frame
-            bodies = bodies.filter(b => !b.dead);
-
-            // Particle effects
-            particles = particles.filter(p => p.life > 0);
-            particles.forEach(p => { p.update(); p.draw(); });
-
-            requestAnimationFrame(animate);
+            grid = nextGrid;
         }
 
-        // --- PARTICLE EFFECTS (for collisions/black holes) ---
-        let particles = [];
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x; this.y = y; this.color = color;
-                this.vx = (Math.random() - 0.5) * 6; this.vy = (Math.random() - 0.5) * 6;
-                this.life = 30; this.maxLife = 30;
-            }
-            update() { this.x += this.vx; this.y += this.vy; this.life--; }
-            draw() {
-                ctx.globalAlpha = this.life / this.maxLife;
-                ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 3, 3);
-                ctx.globalAlpha = 1.0;
+        // --- RENDER LOOP ---
+        function draw() {
+            ctx.fillStyle = COLORS[EMPTY];
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let x = 0; x < cols; x++) {
+                for (let y = 0; y < rows; y++) {
+                    if (grid[x][y] !== EMPTY) {
+                        ctx.fillStyle = COLORS[grid[x][y]];
+                        // Add slight padding to make the wire look like a circuit board
+                        ctx.fillRect(x * CELL_SIZE + 1, y * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+                    }
+                }
             }
         }
-        function createParticles(x, y, color, amount = 8) {
-            for(let i=0; i<amount; i++) particles.push(new Particle(x, y, color));
+
+        let lastTime = 0;
+        const tickRate = 100; // Milliseconds per simulation step (speed)
+
+        function loop(timestamp) {
+            if (isPlaying && timestamp - lastTime > tickRate) {
+                step();
+                lastTime = timestamp;
+            }
+            draw();
+            requestAnimationFrame(loop);
         }
 
-        // --- EVENT LISTENERS ---
-        let mouseX = 0, mouseY = 0;
-        canvas.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
-        window.addEventListener('resize', () => { initCanvas(); });
-
-        // Initial setup and start
-        initCanvas();
-        animate();
-
-        // Spawn some initial elements for fun
-        bodies.push(new Body(width / 2, height / 2, 'Star')); // Central Star
-        // bodies.push(new Body(width / 4, height / 2, 'Black Hole')); // A black hole for chaos
-        // bodies.push(new Body(width * 0.75, height / 2, 'Star')); // A binary partner
+        window.addEventListener('resize', () => { initGrid(); });
+        
+        initGrid();
+        requestAnimationFrame(loop);
     </script>
 </body>
 </html>
